@@ -1,0 +1,35 @@
+behaviors:
+  TagMApoca:
+    trainer_type: ppo
+    hyperparameters:
+      batch_size: 256
+      buffer_size: 20480
+      learning_rate: 3.0e-4
+      learning_rate_schedule: linear
+      beta: 5.0e-3
+      beta_schedule: constant
+      epsilon: 0.2
+      epsilon_schedule: linear
+      lambd: 0.95
+      num_epoch: 3
+    network_settings:
+      normalize: true
+      hidden_units: 128
+      num_layers: 2
+      vis_encode_type: simple
+    reward_signals:
+      extrinsic:
+        gamma: 0.99
+        strength: 1.0
+    max_steps: 500000
+    time_horizon: 128
+    summary_freq: 10000
+    checkpoint_interval: 50000
+    keep_checkpoints: 5
+
+    self_play:
+      window: 10
+      play_against_latest_model_ratio: 0.5
+      save_steps: 20000
+      swap_steps: 10000
+      team_change: 100000
