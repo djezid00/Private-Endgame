@@ -5,105 +5,161 @@ using Unity.MLAgents.Sensors;
 
 public class TagAgent : Agent
 {
-    public TagArenaManager arena;
-    public int teamId;             // 0 = chaser, 1 = runner
-    public float moveSpeed = 5f;
-    public float turnSpeed = 180f;
+    // ─────────────────────────────────────────────
+    // INSPECTOR FIELDS
+    // ─────────────────────────────────────────────
+    [Header("Arena Link")]
+    public TagArenaManager arena;   // set automatically by TagArenaManager or drag in Inspector
 
-    Rigidbody rb;
+    [Header("Role")]
+    public int teamId = 0;          // 0 = chaser, 1 = runner — MUST match BehaviorParameters TeamId
 
+    [Header("Movement")]
+    public float moveSpeed  = 5f;   // units/second for forward/back movement
+    public float turnSpeed  = 180f; // degrees/second for left/right rotation
+
+    // ─────────────────────────────────────────────
+    // PRIVATE STATE
+    // ─────────────────────────────────────────────
+    private Rigidbody rb;
+
+    // ─────────────────────────────────────────────
+    // INITIALIZE — runs ONCE when the agent is first created
+    // Used for one-time setup (caching components).
+    // Do NOT put per-episode logic here.
+    // ─────────────────────────────────────────────
     public override void Initialize()
     {
         rb = GetComponent<Rigidbody>();
     }
 
+    // ─────────────────────────────────────────────
+    // ON EPISODE BEGIN — runs at the START of every episode
+    //
+    // KEY FIX: Only the CHASER (teamId == 0) calls ResetArena().
+    // Previously BOTH agents called ResetArena(), causing a double-reset
+    // race condition that spawned agents on top of each other,
+    // triggering an instant collision → instant episode end → infinite loop.
+    // ─────────────────────────────────────────────
     public override void OnEpisodeBegin()
     {
-        arena.ResetArena();
+        if (teamId == 0)
+            arena.ResetArena();
+
+        // Runner does nothing here — it just waits for chaser's reset to place it.
     }
 
+    // ─────────────────────────────────────────────
+    // COLLECT OBSERVATIONS — called every step before the agent acts
+    // Total vector observations: 18 floats
+    // (Ray Perception Sensor adds its own floats automatically on top)
+    // ─────────────────────────────────────────────
     public override void CollectObservations(VectorSensor sensor)
     {
-        // --- SELF ---
-        // 1) Own position (3 floats)
-        //    WHY: The agent must know where it is in the arena to plan movement.
+        // ── SELF (9 floats) ──────────────────────────────────────────────────
+        // localPosition: where am I in the arena? (3 floats)
         sensor.AddObservation(transform.localPosition);
 
-        // 2) Own velocity (3 floats)
-        //    WHY: Velocity tells the agent how fast and in what direction it is
-        //    currently moving, which is critical for momentum-based decisions
-        //    like braking before walls or accelerating toward the opponent.
+        // linearVelocity: how fast and in what direction am I moving? (3 floats)
         sensor.AddObservation(rb.linearVelocity);
 
-        // 3) Own facing direction (3 floats)
-        //    WHY (NEW): Without knowing which way it is facing, the agent cannot
-        //    distinguish "move forward" from "move backward". transform.forward
-        //    encodes the agent's heading as a normalised 3D vector. This is the
-        //    most common missing observation in beginner ML-Agents setups.
+        // forward: which direction am I facing? (3 floats)
         sensor.AddObservation(transform.forward);
 
-        // --- OPPONENT ---
-        var opponent = arena.GetOpponent(this);
+        // ── OPPONENT (9 floats) ──────────────────────────────────────────────
+        TagAgent   opponent   = arena.GetOpponent(this);
+        Rigidbody  opponentRb = opponent.GetComponent<Rigidbody>();
 
-        // 4) Relative opponent position (3 floats)
-        //    WHY: Using the difference vector instead of the raw world position
-        //    makes the observation translation-invariant — it tells the agent
-        //    "the opponent is X units ahead and Y units to my left" rather than
-        //    abstract world coordinates, which speeds up learning.
-        Vector3 relativePos = opponent.transform.localPosition - transform.localPosition;
-        sensor.AddObservation(relativePos);
+        // Relative position: where is the opponent relative to ME? (3 floats)
+        // Using relative (not absolute) position makes the observation
+        // arena-position-independent — the agent learns "opponent is 3m right"
+        // rather than "opponent is at world position (7, 1, 2)".
+        sensor.AddObservation(opponent.transform.localPosition - transform.localPosition);
 
-        // 5) Opponent velocity (3 floats)
-        //    WHY (NEW): Knowing where the opponent IS right now is not enough;
-        //    the agent also needs to know where the opponent WILL BE in the next
-        //    few frames. Opponent velocity enables predictive interception
-        //    (chaser) and evasive manoeuvring (runner) — two core competitive
-        //    behaviours described in your thesis topic.
-        Rigidbody opponentRb = opponent.GetComponent<Rigidbody>();
+        // Opponent's velocity: how fast is the opponent moving and where? (3 floats)
         sensor.AddObservation(opponentRb.linearVelocity);
 
-        // 6) Opponent facing direction (3 floats)
-        //    WHY (NEW): The direction the opponent is looking reveals their
-        //    likely next move. A runner facing away is about to flee; a chaser
-        //    facing toward you is about to charge. This is especially useful
-        //    for the runner learning to anticipate the chaser's trajectory.
+        // Opponent's facing direction: which way is the opponent turned? (3 floats)
         sensor.AddObservation(opponent.transform.forward);
 
-        // TOTAL: 3+3+3 (self) + 3+3+3 (opponent) = 18 floats per step
-        // Previous total was 9 floats — doubled the information density.
+        // TOTAL: 18 floats — must match VectorObservationSize in BehaviorParameters
     }
 
+    // ─────────────────────────────────────────────
+    // ON ACTION RECEIVED — called every FixedUpdate step when the trainer sends actions
+    // actions.ContinuousActions[0] = move  (-1 = back, 0 = stop, +1 = forward)
+    // actions.ContinuousActions[1] = turn  (-1 = left, 0 = straight, +1 = right)
+    // ─────────────────────────────────────────────
     public override void OnActionReceived(ActionBuffers actions)
     {
+        // ── READ ACTIONS ─────────────────────────────────────────────────────
+        // Clamp ensures the network output never exceeds [-1, 1]
         float move = Mathf.Clamp(actions.ContinuousActions[0], -1f, 1f);
         float turn = Mathf.Clamp(actions.ContinuousActions[1], -1f, 1f);
 
-        rb.MovePosition(transform.position + transform.forward * move * moveSpeed * Time.fixedDeltaTime);
+        // ── APPLY MOVEMENT ───────────────────────────────────────────────────
+        // MovePosition moves the Rigidbody kinematically, respecting physics colliders.
+        // We multiply by Time.fixedDeltaTime to keep speed frame-rate-independent.
+        rb.MovePosition(transform.position
+            + transform.forward * move * moveSpeed * Time.fixedDeltaTime);
+
+        // Rotate on the Y axis only (yaw) — no tilting or rolling
         transform.Rotate(Vector3.up, turn * turnSpeed * Time.fixedDeltaTime);
 
-        // Small per-step penalty to encourage efficiency (unchanged)
-        AddReward(-0.001f);
-    }
-
-    private void OnCollisionEnter(Collision collision)
-    {
-        if (collision.collider.CompareTag("Agent"))
+        // ── ROLE-BASED STEP REWARD ───────────────────────────────────────────
+        if (teamId == 0) // CHASER
         {
-            arena.OnAgentTagged(this, collision.collider.GetComponent<TagAgent>());
+            // Small negative reward every step → chaser is punished for wasting time
+            // This creates urgency: catch the runner as fast as possible.
+            AddReward(-0.001f);
+
+            // Only the chaser ticks the arena step clock.
+            // If the runner also called arena.Step(), the timer would advance
+            // twice per frame (double-speed stalemate).
+            arena.Step();
+        }
+        else // RUNNER
+        {
+            // Small positive reward every step → runner is rewarded for surviving
+            // This creates evasion: stay alive as long as possible.
+            AddReward(+0.001f);
         }
     }
 
+    // ─────────────────────────────────────────────
+    // ON COLLISION ENTER — fires when this agent physically touches another collider
+    //
+    // We use OnCollisionEnter (not OnTriggerEnter) because the BoxCollider
+    // is NOT set to IsTrigger — it's a solid physics collider.
+    // ─────────────────────────────────────────────
+    private void OnCollisionEnter(Collision collision)
+    {
+        // Only react to collisions with objects tagged "Agent"
+        // (avoids reacting to wall bounces or floor contacts)
+        if (!collision.collider.CompareTag("Agent")) return;
+
+        TagAgent other = collision.collider.GetComponent<TagAgent>();
+
+        // Null guard: if the other object has no TagAgent, ignore it
+        if (other == null) return;
+
+        // Notify the arena manager — it decides who wins based on teamId
+        arena.OnAgentTagged(this, other);
+    }
+
+    // ─────────────────────────────────────────────
+    // HEURISTIC — manual keyboard control for testing WITHOUT the ML trainer
+    // Press Play in Unity WITHOUT running mlagents-learn to test movement.
+    // W/S = move forward/back, A/D = turn left/right
+    // ─────────────────────────────────────────────
     public override void Heuristic(in ActionBuffers actionsOut)
     {
-       // OLD (while training):
-    // c[0] = Input.GetAxis("Vertical");
-    // c[1] = Input.GetAxis("Horizontal");
+        var c = actionsOut.ContinuousActions;
 
-    // NEW — after it has been trained:
-    var c = actionsOut.ContinuousActions;
-    c[0] = UnityEngine.InputSystem.Keyboard.current.wKey.isPressed ? 1f :
-           UnityEngine.InputSystem.Keyboard.current.sKey.isPressed ? -1f : 0f;
-    c[1] = UnityEngine.InputSystem.Keyboard.current.dKey.isPressed ? 1f :
-           UnityEngine.InputSystem.Keyboard.current.aKey.isPressed ? -1f : 0f;
+        c[0] = UnityEngine.InputSystem.Keyboard.current.wKey.isPressed ?  1f :
+               UnityEngine.InputSystem.Keyboard.current.sKey.isPressed ? -1f : 0f;
+
+        c[1] = UnityEngine.InputSystem.Keyboard.current.dKey.isPressed ?  1f :
+               UnityEngine.InputSystem.Keyboard.current.aKey.isPressed ? -1f : 0f;
     }
 }
