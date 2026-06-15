@@ -11,8 +11,11 @@ public class TagArenaManager : MonoBehaviour
     public TagAgent runner;   // drag RunnerAgent here in Inspector
 
     [Header("Arena Settings")]
-    public float arenaRadius = 8f;  // half-size of the square arena
-    public float spawnY      = 1f;  // Y height agents are placed at on reset
+    public float arenaRadius = 8f;    // half-size of the square arena
+    public float spawnY      = 0.5f;  // Y height agents are placed at on reset.
+                                      // The agent is a 1x1x1 box (centre = 0.5 above its base),
+                                      // so 0.5 rests it flush on a floor whose top is at y=0
+                                      // (previously 1f, which left agents floating ~0.5u at spawn).
 
     [Header("Spawn Safety")]
     public float minSpawnDistance = 3f; // minimum distance between agents at spawn
@@ -31,6 +34,17 @@ public class TagArenaManager : MonoBehaviour
     private Rigidbody runnerRb;
 
     // ─────────────────────────────────────────────
+    // MA-POCA TEAM GROUPS
+    // Each role is its own cooperative group. With 1v1 each group holds a single
+    // agent, but routing terminal rewards / episode ends through the group is what
+    // makes this a genuine MA-POCA (poca) setup rather than de-facto PPO — and it
+    // means scaling to multiple chasers later is just extra RegisterAgent() calls.
+    // All agents in a group MUST share the same Behavior Name (Chaser / Runner).
+    // ─────────────────────────────────────────────
+    private SimpleMultiAgentGroup chaserGroup;
+    private SimpleMultiAgentGroup runnerGroup;
+
+    // ─────────────────────────────────────────────
     // UNITY START — cache Rigidbody references once
     // ─────────────────────────────────────────────
     // Called once when the scene starts.
@@ -40,6 +54,14 @@ public class TagArenaManager : MonoBehaviour
     {
         chaserRb = chaser.GetComponent<Rigidbody>();
         runnerRb = runner.GetComponent<Rigidbody>();
+
+        // Build the two role groups and register their agent(s).
+        // To add a second chaser later: chaserGroup.RegisterAgent(secondChaser);
+        chaserGroup = new SimpleMultiAgentGroup();
+        chaserGroup.RegisterAgent(chaser);
+
+        runnerGroup = new SimpleMultiAgentGroup();
+        runnerGroup.RegisterAgent(runner);
     }
 
     // ─────────────────────────────────────────────
@@ -122,14 +144,16 @@ public class TagArenaManager : MonoBehaviour
         if (episodeEnded) return;
         episodeEnded = true;
 
-        // Runner survived the full episode — reward it
-        runner.AddReward(+1f);
-        // Chaser failed to catch runner — penalise it
-        chaser.AddReward(-1f);
+        // Runner group survived the full episode — reward it
+        runnerGroup.AddGroupReward(+1f);
+        // Chaser group failed to catch the runner — penalise it
+        chaserGroup.AddGroupReward(-1f);
 
-        // End both episodes simultaneously
-        chaser.EndEpisode();
-        runner.EndEpisode();
+        // Timeout is a TRUNCATION, not a true terminal state, so use
+        // GroupEpisodeInterrupted: it bootstraps the value estimate at the cutoff
+        // instead of treating it as a real end (correct for stalemate).
+        chaserGroup.GroupEpisodeInterrupted();
+        runnerGroup.GroupEpisodeInterrupted();
     }
 
     // ─────────────────────────────────────────────
@@ -153,26 +177,26 @@ public class TagArenaManager : MonoBehaviour
 
         if (tagger.teamId == 0) // ── CHASER caught RUNNER ─────────────────────
         {
-            // Chaser reward: base +1 plus a time bonus up to +0.5
+            // Chaser group reward: base +1 plus a time bonus up to +0.5
             // (catches faster = bigger bonus → chaser learns urgency)
             float timeBonus = (1f - taggerProgress) * 0.5f;
-            tagger.AddReward(1f + timeBonus);
+            chaserGroup.AddGroupReward(1f + timeBonus);
 
-            // Runner reward: base -1 but survival softens penalty up to +0.5
+            // Runner group reward: base -1 but survival softens penalty up to +0.5
             // (survived longer = smaller net penalty → runner learns to dodge)
             float survivalBonus = taggedProgress * 0.5f;
-            tagged.AddReward(-1f + survivalBonus);
+            runnerGroup.AddGroupReward(-1f + survivalBonus);
         }
         else // ── RUNNER somehow triggered the collision (edge case) ──────────
         {
-            // Treat as a normal catch regardless of who registered the collision
-            tagger.AddReward( 1f);
-            tagged.AddReward(-1f);
+            // A catch is a catch: chaser side wins regardless of which collider fired.
+            chaserGroup.AddGroupReward( 1f);
+            runnerGroup.AddGroupReward(-1f);
         }
 
-        // End both agents' episodes at the same time
-        tagger.EndEpisode();
-        tagged.EndEpisode();
+        // A catch IS a true terminal state → EndGroupEpisode (no value bootstrap).
+        chaserGroup.EndGroupEpisode();
+        runnerGroup.EndGroupEpisode();
     }
 
     // ─────────────────────────────────────────────

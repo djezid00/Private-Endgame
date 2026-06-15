@@ -502,7 +502,7 @@ MonoBehaviour:
   chaser: {fileID: 7580346659499120912}
   runner: {fileID: 2215757596729724877}
   arenaRadius: 8
-  spawnY: 1
+  spawnY: 0.5
   useFixedSpawn: 0
   maxEpisodeSteps: 2000
 --- !u!1 &9058859749798928034
@@ -675,7 +675,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5041277527691669330, guid: 009a15a2e3c8ed147acc9ff391b9d328, type: 3}
       propertyPath: m_BehaviorName
-      value: TagMApoca
+      value: Runner
       objectReference: {fileID: 0}
     - target: {fileID: 5041277527691669330, guid: 009a15a2e3c8ed147acc9ff391b9d328, type: 3}
       propertyPath: m_BrainParameters.VectorActionSpaceType
@@ -767,11 +767,11 @@ PrefabInstance:
       objectReference: {fileID: 7020544292675573677}
     - target: {fileID: -7694993636577636208, guid: 5803ef05616315249abd66e59111f36b, type: 3}
       propertyPath: MaxStep
-      value: 2000
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 532894581583974457, guid: 5803ef05616315249abd66e59111f36b, type: 3}
       propertyPath: m_BehaviorName
-      value: TagMApoca
+      value: Chaser
       objectReference: {fileID: 0}
     - target: {fileID: 532894581583974457, guid: 5803ef05616315249abd66e59111f36b, type: 3}
       propertyPath: m_BrainParameters.VectorActionSpaceType
