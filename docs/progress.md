@@ -41,6 +41,19 @@ Branch: `feat/ma-poca-asymmetric-refactor` (still not merged). Commit `abe2a0b`.
 2. Decide the reward-shaping question (sparse vs shaped) and raise arena count before 5M.
 3. (Optional, high thesis value) PPO-vs-MA-POCA comparison to justify the algorithm choice.
 
+### Brainstorm started (PARKED — resume next session)
+Began a `superpowers:brainstorming` session on the reward design. Decisions so far:
+- **Scope:** reward + kinematics design for the *next* run only (not the full thesis
+  experiment plan — that's a later brainstorm).
+- **Open question we stopped on — "shaping stance":** how to treat chaser reward
+  shaping given the thesis framing. Three options on the table:
+  (a) shaping is fine if justified (pragmatic, add dense distance-closing reward);
+  (b) protect purity, shape only if the pure terminal ±1 run demonstrably fails;
+  (c) make sparse-vs-shaped a deliberate comparison and report both as a finding.
+- **Resume here:** answer the shaping-stance question, then the second lever
+  (equal vs unequal chaser/runner kinematics), then propose 2–3 approaches → design.
+  Context for the levers is in `docs/Theory.md` §6.
+
 ---
 
 ## 2026-06-15 — MA-POCA asymmetric refactor
