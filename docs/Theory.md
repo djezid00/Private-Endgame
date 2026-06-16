@@ -1,0 +1,168 @@
+# Theory & Empirical Findings — Tag with MA-POCA
+
+> Working notes to feed the final paper *"Analysis of Competitive Interaction in Video Games
+> using Multi-Agent Machine Learning."* Each section is written so it can be lifted into the
+> thesis with light editing. Findings are tagged with the run they came from.
+
+---
+
+## 1. Method recap (what the implementation actually instantiates)
+
+The Tag environment is an **asymmetric two-team competitive game**:
+
+- **Chaser** — Behavior Name `Chaser`, Team Id 0, pursues.
+- **Runner** — Behavior Name `Runner`, Team Id 1, evades.
+
+Each role is a distinct ML-Agents *behavior* and a distinct `SimpleMultiAgentGroup`. The two
+groups are what make this **MA-POCA** (Multi-Agent POsthumous Credit Assignment) rather than
+independent PPO: terminal team outcomes are delivered with `AddGroupReward`, and episodes end
+through the group (`EndGroupEpisode` for a catch, `GroupEpisodeInterrupted` for a timeout).
+MA-POCA trains a **centralized critic with a counterfactual baseline** that attributes a shared
+group return to individual agents, which is the mechanism that (a) handles agents that leave/join
+mid-episode ("posthumous" credit) and (b) lets the design scale to teams (e.g. a 2nd chaser)
+without changing the learning rule.
+
+Observation space: 18 vector floats (self pos/vel/forward + opponent relative pos/vel/forward)
+plus a `RayPerceptionSensor3D` (walls + agents). Action space: 2 continuous (move, turn).
+Decisions every 5 physics steps (`DecisionRequester` period 5). Training uses **self-play**
+(ELO-rated, snapshot opponents, periodic team change).
+
+---
+
+## 2. Empirical evidence that the trainer is genuinely POCA (not PPO)
+
+*Source: smoke run `TagTest_poca_01`, 2026-06-16, config `TagMApoca_smoke.yaml` (50k-step budget,
+self-play cadences scaled ~100× down; CPU PyTorch 2.11.0; 4 parallel arenas).*
+
+The distinguishing artifact is in the loss terms reported per update:
+
+| Loss term            | Chaser  | Runner  | Interpretation |
+|----------------------|---------|---------|----------------|
+| `Policy/PolicyLoss`  | 0.0176  | 0.0154  | actor update (present in PPO too) |
+| `Policy/ValueLoss`   | 0.0202  | 0.0201  | centralized value head |
+| **`Policy/BaselineLoss`** | **0.0202** | **0.0206** | **counterfactual baseline — POCA-specific** |
+
+> **Thesis point:** the presence of a finite **BaselineLoss** alongside ValueLoss is direct evidence
+> that the centralized baseline network of MA-POCA is being optimized. A pure PPO/independent-learner
+> setup reports no baseline loss. This is the cleanest single piece of evidence that the
+> group-based refactor produces *bona fide* MA-POCA credit assignment.
+
+Supporting signals (all finite, no NaN/Inf):
+- **Value estimates are directionally correct.** `ExtrinsicValueEstimate` ≈ `ExtrinsicBaselineEstimate`
+  = **−0.229 (Chaser)** vs **+0.042 (Runner)** — the critic already predicts the chaser loses and the
+  runner roughly breaks even, consistent with the observed near-100 % runner-win baseline.
+- **Entropy ≈ 1.42** for both policies — high, i.e. near-random exploration, expected at 50–60k steps.
+- **Group rewards split cleanly** (`GroupCumulativeReward`: Chaser −0.66, Runner +0.85), confirming the
+  group-reward plumbing reaches the optimizer.
+
+---
+
+## 3. Self-play machinery validated
+
+- ELO tracked and updated from 1200: final **Chaser 1206.4 / Runner 1195.1** (~11-pt gap — noise at
+  this horizon, but the rating loop works).
+- `team_change` (scaled to 20k) fired: the console shows the Chaser flip to **"Not Training"** while
+  the Runner kept learning — i.e. one team becomes the frozen snapshot opponent while the other trains.
+- Snapshot opponents saved on `save_steps`; the agent-step counter overran the nominal budget
+  (Chaser reached 60 267 > 50 000) — this is **normal self-play accounting**, not a bug: the
+  non-learning ("ghost") team keeps stepping as the opponent.
+- `.onnx` checkpoints exported at the checkpoint interval and the final model copied to
+  `Chaser.onnx` / `Runner.onnx`. Clean, deterministic shutdown.
+
+---
+
+## 4. Characterization of the random-policy baseline (the "step 0" of the arms race)
+
+At 50–60k steps the policies are still essentially random, and this defines the **initial regime**
+the arms race must climb out of:
+
+- **Mean episode length ≈ 393 / 380 decision steps** (≈ the 400-decision-step cap = 2000 physics
+  steps). → **the overwhelming majority of episodes end in the stalemate timeout**, not a catch.
+- **Catch rate ≈ 5–15 %** (inferred from `GroupCumulativeReward` Chaser −0.66: a pure-stalemate
+  baseline would be exactly −1.0; the offset above −1 is contributed by occasional catches).
+- Individual shaping behaves exactly as designed: Chaser `CumulativeReward` ≈ −1.97
+  (−0.001 × ~2000 steps), Runner ≈ +1.90.
+
+> **Thesis metric — "time-to-catch".** Mean episode length is a direct, interpretable proxy for
+> chaser skill: a learning chaser should drive this curve **down** over training. Plotting mean
+> episode length (and catch rate) vs. steps is a clean way to visualize the emergence of pursuit
+> competence, complementing the ELO and reward curves.
+
+---
+
+## 5. Performance / scaling analysis (important for planning the 5M run)
+
+Wall-clock breakdown from `timers.json` (total 396.3 s):
+
+| Phase | Time (s) | Share | Note |
+|-------|---------|-------|------|
+| `env_step` (sim + IPC) | 310 | ~78 % | environment-bound |
+| └ `communicator.exchange` (Unity↔Python IPC) | 168 | ~42 % | dominant single cost |
+| └ `UnityEnvironment.step` | 192 | ~48 % | |
+| `TorchPolicy.evaluate` (inference fwd pass) | 57 | ~14 % | |
+| `TorchPOCAOptimizer.update` (gradients) | 25 | ~6 % | **the only "compute" cost** |
+
+**Throughput:** ~109.6k agent-steps / 396 s ≈ **277 agent-steps/s** with **4 arenas** on CPU.
+
+> **Thesis point — the bottleneck is the environment, not the network.** Only ~20 % of wall-clock is
+> neural-net work (inference + gradient updates); ~80 % is Unity simulation and Python↔Unity IPC.
+> **Consequences:**
+> 1. A GPU would yield little speedup at this network size (256×2) — the gradient step is already
+>    only ~6 % of time. *Do not* attribute slow training to "no CUDA".
+> 2. The highest-leverage lever is **more parallel environments** (in-scene arenas), which both
+>    raises agent-steps/s (per-step IPC overhead amortizes over more agents) and **de-correlates the
+>    experience buffer** — valuable in non-stationary self-play. Currently 4 arenas; the reference
+>    work (AI Warehouse) used ~200. Recommend scaling to 16–32+ before the multi-day run.
+> 3. Order-of-magnitude for the planned run: 5M steps/behavior ≈ 10M agent-steps ≈ **~10 h at 4
+>    arenas**; roughly inversely proportional to arena count until IPC saturates.
+
+*Caveat:* in the smoke config the linear LR schedule is tied to `max_steps=50k`, so LR had already
+decayed to ~5.3e-5 by the end. This is a smoke artifact; the real run schedules over 5M.
+
+---
+
+## 6. Principal risk to the research goal, and design levers
+
+The baseline is **~100 % runner-win-by-stalemate** with a **low, sparse catch signal**, and the two
+agents have **identical kinematics** (`moveSpeed 5`, `turnSpeed 180`). In pursuit-evasion theory an
+equal-speed pursuer can only win in a bounded arena via interception/cornering — a hard policy to
+discover from sparse reward. The chaser's only shaping today (uniform −0.001/step) creates *urgency*
+but provides **no spatial gradient toward the runner**, so early learning relies on rare accidental
+catches.
+
+This mirrors the reference video's own finding: sparse rewards (their grab-the-cube event) had to be
+**densified with a shaping bonus** before the behavior emerged. Candidate levers — each a thesis-worthy
+design decision to **justify and ideally ablate**:
+
+1. **Dense distance-closing reward for the chaser**, e.g. `+k · (prevDist − curDist)` per step, giving a
+   smooth gradient toward the runner without changing the terminal ±1 game outcome.
+2. **Slight chaser speed advantage** (e.g. 5.5–6 vs 5), a standard way to make catching achievable.
+3. **Potential-based shaping** (Ng et al., 1999) so the added reward is provably policy-invariant —
+   a clean, citable choice that pre-empts the "did shaping change the optimal policy?" critique.
+
+> **Open research question for the paper:** does MA-POCA + self-play reach emergent pursuit/evasion
+> under the *pure* terminal reward, or is reward shaping necessary? Running both (sparse vs shaped) is
+> itself a result, not just an implementation detail.
+
+---
+
+## 7. Metrics to log for the thesis (all already emitted to TensorBoard)
+
+- `Self-play/ELO` per behavior — divergence from 1200 = competitive separation.
+- `Environment/CumulativeReward` and `Environment/GroupCumulativeReward` — opposing curves = arms race.
+- **Mean episode length** (time-to-catch) and **catch rate** — interpretable skill proxies (§4).
+- `Policy/Entropy` — exploration→exploitation transition (should fall as policies sharpen).
+- `Losses/PolicyLoss`, `Losses/ValueLoss`, `Losses/BaselineLoss` — training stability; BaselineLoss
+  doubles as the POCA-vs-PPO evidence (§2).
+
+---
+
+## 8. Status / next experiments
+
+- ✅ Pipeline mechanically validated end-to-end; confirmed genuine MA-POCA.
+- ▶ **Next:** a short validation run (~300–500k steps) on the full `TagMApoca.yaml` to confirm the
+  curves *move* (ELO diverges, rewards oppose, episode length drops) — first real learning signal.
+- Before the multi-day 5M run: (a) raise arena count for throughput + sample diversity; (b) decide the
+  reward-shaping question in §6 (recommend running it as a sparse-vs-shaped comparison).
+- Optional but high-value for the thesis: a **PPO (independent-learner) vs MA-POCA** comparison —
+  this is what *justifies the choice* of MA-POCA rather than assuming it.

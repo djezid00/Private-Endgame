@@ -5,6 +5,44 @@ Each entry is one working session. Newest at the top.
 
 ---
 
+## 2026-06-16 — Editor verification + first smoke train
+
+Branch: `feat/ma-poca-asymmetric-refactor` (still not merged). Commit `abe2a0b`.
+
+### What we completed
+- **Editor verification (step 1) done.** No Console errors; prefabs confirmed (one
+  DecisionRequester, correct Behavior Name/TeamId, MaxStep=0, empty model).
+- **Found + fixed a real movement bug.** Rigidbody `m_Constraints` was `10`
+  (FreezePositionX|Z) → froze horizontal `rb.MovePosition`; A/D (rotation) worked but
+  W/S (movement) didn't. Changed to `80` (FreezeRotationX|Z) on both agent prefabs.
+  WASD verified moving across all 4 arenas in-Editor.
+- **Fixed cosmetic float.** Authored agent `y` 1→0.5 on prefabs and the TagArena
+  nested-instance `y` overrides 2→0.5 so cubes rest flush when stopped (runtime was
+  already correct via spawnY 0.5).
+- **First smoke train ran clean** (`TagTest_poca_01`, `config/poca/TagMApoca_smoke.yaml`,
+  50k budget, 4 arenas, CPU). Both behaviours connected, checkpoints + `.onnx` exported,
+  clean exit, **no NaNs**.
+
+### Key findings (full write-up in `docs/Theory.md`)
+- **Confirmed genuine MA-POCA, not PPO:** finite `BaselineLoss` (Chaser 0.0202 /
+  Runner 0.0206) — the counterfactual baseline term PPO doesn't have.
+- **Baseline regime ≈ 100 % stalemate** (mean episode length ≈393/400 decision steps,
+  catch rate ~5–15 %); value estimates directionally correct (Chaser −0.23 / Runner +0.04).
+- **Workload is environment-bound, not compute-bound:** ~79 % of wall-clock is Unity sim +
+  IPC, only ~6 % is gradient updates → **more arenas, not a GPU**, is the lever.
+  ~277 agent-steps/s at 4 arenas → ~10 h for the 5M run.
+- **Principal risk:** sparse catch signal + identical kinematics may stall chaser learning;
+  candidate levers = distance-closing shaping and/or slight chaser speed advantage
+  (to justify/ablate — see Theory.md §6).
+
+### Next steps
+1. Short validation run (~300–500k) on full `TagMApoca.yaml` — confirm ELO diverges,
+   rewards oppose, mean episode length drops (first real learning signal).
+2. Decide the reward-shaping question (sparse vs shaped) and raise arena count before 5M.
+3. (Optional, high thesis value) PPO-vs-MA-POCA comparison to justify the algorithm choice.
+
+---
+
 ## 2026-06-15 — MA-POCA asymmetric refactor
 
 Branch: `feat/ma-poca-asymmetric-refactor` (not merged — awaiting approval).

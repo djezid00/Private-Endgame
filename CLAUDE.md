@@ -205,10 +205,17 @@ behaviors:
 
 ## Environment Activation
 
-All terminal commands must be run in the **conda `mlagents` environment**:
+All terminal commands must be run in the **conda `mlagents` environment**.
+
+> **IMPORTANT:** conda is NOT on the PATH of a normal shell (PowerShell / Git Bash) — `conda activate`
+> fails there with "command not found". You must use the **Anaconda Prompt** (Anaconda / miniconda3,
+> Start-Menu entry `C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Anaconda (miniconda3)`).
+> Because of this, Claude **cannot run mlagents commands itself** — it prepares the exact command and
+> the user pastes it into an already-open Anaconda Prompt (the user keeps one positioned in the Unity
+> project dir).
 
 ```bash
-conda activate mlagents
+conda activate mlagents   # only works inside the Anaconda Prompt
 # Verify
 python -m mlagents --version
 mlagents-learn --help
