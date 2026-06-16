@@ -124,31 +124,48 @@ Albert also had a couple moments of throwing the cubes at Kai and spinning with 
 
 ## Core Code Reference
 
+> **Updated 2026-06-15 (asymmetric MA-POCA refactor, branch `feat/ma-poca-asymmetric-refactor`).**
+> The game is now split into **two behaviours**: `Chaser` (Behavior Name `Chaser`, TeamId 0) and
+> `Runner` (Behavior Name `Runner`, TeamId 1) — the ML-Agents-documented setup for asymmetric games.
+> Each role is its own `SimpleMultiAgentGroup`, which is what makes this genuine MA-POCA. Prefabs now
+> use `MaxStep: 0` (arena owns termination) and carry a `DecisionRequester` (period 5); `spawnY` is `0.5`.
+
 ### TagAgent.cs — Key Facts
 - Inherits from `Unity.MLAgents.Agent`
 - **teamId**: `0` = Chaser (pursues), `1` = Runner (evades)
+- **Behavior Name**: `Chaser` (TeamId 0) / `Runner` (TeamId 1) — two separate behaviours, not one shared `TagMApoca`
+- **MaxStep**: `0` on both prefabs — `TagArenaManager` solely owns episode termination
+- **DecisionRequester**: present on both prefabs, DecisionPeriod 5, TakeActionsBetweenDecisions on
 - **Observation space**: 18 floats (vector) + RayPerceptionSensor3D (wall/agent raycasts)
   - Self: localPosition (3), linearVelocity (3), forward (3)
   - Opponent: relative position (3), linearVelocity (3), forward (3)
 - **Action space**: 2 continuous actions — `[0]` = move (forward/back), `[1]` = turn (left/right)
-- **Step rewards**: Chaser gets `-0.001f` per step, Runner gets `+0.001f` per step
-- **Episode end**: Triggered via `TagArenaManager.OnAgentTagged()` or stalemate timeout
+- **Step rewards**: Chaser gets `-0.001f` per step, Runner gets `+0.001f` per step (per-agent shaping, kept alongside group rewards)
+- **Episode end**: Triggered via `TagArenaManager.OnAgentTagged()` or stalemate timeout (routed through the groups, not per-agent `EndEpisode`)
 - **Heuristic**: WASD keys (w/s = move, a/d = turn) for manual play testing
 
 ### TagArenaManager.cs — Key Facts
 - **Arena size**: 20×20 floor, 4 walls tagged "Wall"
 - **arenaRadius**: 8f (spawn range)
+- **spawnY**: `0.5f` — 1×1×1 box rests flush on the floor (was `1f`, which left agents floating)
+- **MA-POCA groups**: two `SimpleMultiAgentGroup`s (chaserGroup / runnerGroup) built + registered in `Start()`; terminal rewards flow via `AddGroupReward`
 - **maxEpisodeSteps**: 2000
 - **Random spawn**: Chaser on X ∈ [-8, -1], Runner on X ∈ [+1, +8], both random Z ∈ [-8, 8]
-- **Stalemate**: After 2000 steps → Chaser gets -1, Runner gets +1
-- **Tag reward**: Chaser catches Runner → Chaser: `+1 + timeBonus`, Runner: `-1 - survivalBonus`
+- **Stalemate**: After 2000 steps → runner group `+1`, chaser group `-1`, then `GroupEpisodeInterrupted()` (truncation, bootstraps value)
+- **Tag reward**: Chaser catches Runner → chaser group `+1 + timeBonus`, runner group `-1 + survivalBonus`, then `EndGroupEpisode()` (true terminal)
   - `timeBonus = clamp(1 - steps/maxSteps, 0, 0.5)` — reward faster catches
-  - `survivalBonus = clamp(steps/maxSteps, 0, 0.5)` — penalize early catches
+  - `survivalBonus = clamp(steps/maxSteps, 0, 0.5)` — soften penalty for surviving longer
+  - a catch is scored chaser-wins regardless of which collider fired (fixed an old edge-case sign bug)
 
 ### TagMApoca.yaml — Trainer Config
+> **As of the refactor this file defines TWO behaviour blocks — `Chaser:` and `Runner:` — with
+> identical hyperparameters (shown below) and each its own `self_play` block.** The Behavior Names
+> MUST match the prefabs (`Chaser` / `Runner`). The single-`TagMApoca` block below is the legacy
+> shape; see the live file at `…/ML_AGENTS_GIT/ml-agents/config/poca/TagMApoca.yaml` for the
+> current two-behaviour version.
 ```yaml
 behaviors:
-  TagMApoca:
+  Chaser:   # ... and an identical Runner: block
     trainer_type: poca
     hyperparameters:
       batch_size: 2048           # was 256 — more stable gradients in non-stationary self-play
@@ -304,7 +321,13 @@ Use for long-running tasks:
 
 ## Known Issues & Gotchas
 
-1. Agents are floating, and random spawning when learning is active. It is not like the video
+1. ~~Agents are floating, and random spawning when learning is active.~~ **Fixed** in the
+   2026-06-15 refactor: `spawnY` lowered to `0.5` so the box rests flush on the floor.
+   (Still verify in the Editor that Rigidbody `m_Constraints = 10` freezes only Rotation X/Z,
+   not Position X/Z.)
+2. **Open follow-up:** arena reset is driven from the chaser's `OnEpisodeBegin`, which fires
+   synchronously during the first `EndGroupEpisode()` — so the runner is repositioned before its
+   own group episode ends. Works, but the canonical pattern is "end both groups, then reset once".
 
 ---
 
