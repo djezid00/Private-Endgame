@@ -46,11 +46,34 @@ Plan implemented task-by-task; all committed on `feat/sparse-vs-shaped-compariso
 (results `Assets/Tests/EditMode/TestResults_20260617_172304.xml`); prefab shows Arena Diagonal 28.28 /
 Shaping Gamma 0.99. Both branches pushed to `origin`.
 
-### Next
-Task 5 in progress: running validation arms **same seed 12345** —
-`TagVal_sparse_01` (coef 0) then `TagVal_shaped_01` (coef 0.5), 400k each. Then TensorBoard→Playwright
-capture and apply the success rule (catch rate ↑ AND episode length ↓ AND ELO diverge). Results will be
-written into `docs/Theory.md` once both arms finish.
+### Task 5 — Arm A (sparse) DONE; Arm B pending
+`TagVal_sparse_01` (coef 0, seed 12345, 400k, 8 arenas) completed. **Raw final-window metrics**
+(snapshot from `results/TagVal_sparse_01/run_logs/`, NOT yet interpreted — full trajectory is in
+TensorBoard, and the verdict needs Arm B for comparison):
+
+| metric (final window) | Chaser | Runner |
+|---|---|---|
+| ELO | 1212.6 | 1189.3 |
+| EpisodeLength.mean | 386.0 | 399.0 |
+| CumulativeReward.mean | −1.937 | +1.998 |
+| GroupCumulativeReward.mean | −0.91 | +0.94 |
+| Catch.mean (catch rate) | ~0.077 | ~0.08 |
+| Entropy.mean | 1.43 | — |
+
+Read: at 400k the sparse arm is still near the random-baseline regime — episode length ≈ the 400-cap
+(mostly stalemate), catch rate ~8%, ELO gap only ~23 pts (chaser ahead), entropy still ~1.43 (near
+random). `Chaser.TimeToCatch.mean = 0.0` is a final-window artifact (no catch sampled in the last
+window), not a real zero — use the TensorBoard curve. **Do not conclude yet** — compare against the
+shaped arm tomorrow.
+
+### Next session (resume here)
+1. Run **Arm B**: `mlagents-learn config/poca/TagMApoca_shaped.yaml --run-id=TagVal_shaped_01 --seed 12345`
+   (coef 0.5), press Play. ~25–35 min.
+2. Launch `tensorboard --logdir results` (2nd Anaconda Prompt); Claude drives Playwright to screenshot
+   ELO / EpisodeLength / Catch / TimeToCatch / CumulativeReward for **both** run-ids → `docs/figures/validation/`.
+3. Apply the strict success rule (catch rate ↑ AND episode length ↓ AND ELO diverge) per arm; if both
+   flat near baseline → 6/5 chaser-edge fallback. Write the sparse-vs-shaped comparison into `docs/Theory.md`.
+4. Then `superpowers:finishing-a-development-branch`.
 
 ---
 
