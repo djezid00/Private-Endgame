@@ -33,6 +33,9 @@ public class TagArenaManager : MonoBehaviour
     private Rigidbody chaserRb;
     private Rigidbody runnerRb;
 
+    // ML-Agents stats sink — surfaces custom scalars in TensorBoard.
+    private StatsRecorder stats;
+
     // ─────────────────────────────────────────────
     // MA-POCA TEAM GROUPS
     // Each role is its own cooperative group. With 1v1 each group holds a single
@@ -62,6 +65,9 @@ public class TagArenaManager : MonoBehaviour
 
         runnerGroup = new SimpleMultiAgentGroup();
         runnerGroup.RegisterAgent(runner);
+
+        // StatsRecorder lets us log episode outcomes as TensorBoard scalars.
+        stats = Academy.Instance.StatsRecorder;
     }
 
     // ─────────────────────────────────────────────
@@ -154,6 +160,9 @@ public class TagArenaManager : MonoBehaviour
         // instead of treating it as a real end (correct for stalemate).
         chaserGroup.GroupEpisodeInterrupted();
         runnerGroup.GroupEpisodeInterrupted();
+
+        // Outcome metric: 0 = no catch this episode (averaged ⇒ catch rate).
+        stats.Add("Environment/Catch", 0f);
     }
 
     // ─────────────────────────────────────────────
@@ -197,6 +206,11 @@ public class TagArenaManager : MonoBehaviour
         // A catch IS a true terminal state → EndGroupEpisode (no value bootstrap).
         chaserGroup.EndGroupEpisode();
         runnerGroup.EndGroupEpisode();
+
+        // Outcome metrics: 1 = catch (averaged ⇒ catch rate); stepCount = time-to-catch
+        // (averaged over catches only ⇒ mean steps to catch).
+        stats.Add("Environment/Catch", 1f);
+        stats.Add("Environment/TimeToCatch", stepCount);
     }
 
     // ─────────────────────────────────────────────
