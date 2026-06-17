@@ -5,6 +5,38 @@ Each entry is one working session. Newest at the top.
 
 ---
 
+## 2026-06-17 — Reward-shaping experiment: brainstorm → spec → plan
+
+New branch: **`feat/sparse-vs-shaped-comparison`** (off `feat/ma-poca-asymmetric-refactor`).
+
+### Decisions (full brainstorm)
+- **Shaping IS the experiment:** run a **sparse vs shaped** comparison, identical except the
+  chaser's distance-shaping term, and report both as a finding.
+- **Shaped reward = potential-based shaping (PBS)**, Ng et al. 1999 — `Φ = −coef·dist/maxDist`,
+  `F = γΦ′−Φ`, `coef = 0.5`, policy-invariant (defends the emergence claim).
+- **Kinematics fixed equal 5/5** across both arms; **6/5 chaser edge** is a documented fallback.
+- **Strict success rule:** an arm is healthy only if catch rate ↑ AND episode length ↓ AND ELO
+  diverges; both arms flat ⇒ trigger the fallback.
+- Arm is driven from **config** (`environment_parameters.distance_shaping_coef`), not an Editor toggle.
+
+### Artifacts
+- Spec: `docs/superpowers/specs/2026-06-17-chaser-reward-shaping-design.md` (commit `859b626`).
+- Plan: `docs/superpowers/plans/2026-06-17-chaser-reward-shaping.md` (commit `b52adb3`) — 5 tasks:
+  (1) pure `TagReward` PBS math + EditMode unit tests, (2) config-driven PBS in `TagAgent`,
+  (3) `StatsRecorder` catch/time-to-catch, (4) sparse/shaped configs, (5) run both arms + capture.
+
+### Hardware note (arena scaling)
+i7-9750H (6c/12t), 16 GB RAM, GTX 1660 Ti (4 GB). Workload is environment/IPC-bound, not
+compute-bound → **GPU is irrelevant** (CPU PyTorch, tiny net). Editor sweet spot ~8–12 arenas
+(test up to 16). Biggest real win for the 5M run = **headless standalone build + `--no-graphics`**
+(removes render overhead, enables `--num-envs`). Kept arena count unchanged for the 400k validation
+(quick, and must stay constant across arms). Arena scaling = its own task before the 5M run.
+
+### Next
+Execute the plan (subagent-driven or inline), then run the two validation arms.
+
+---
+
 ## 2026-06-16 — Editor verification + first smoke train
 
 Branch: `feat/ma-poca-asymmetric-refactor` (still not merged). Commit `abe2a0b`.
