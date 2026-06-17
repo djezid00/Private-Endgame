@@ -56,20 +56,32 @@ git commit -m "feat: initial commit — tag game MA-POCA thesis project"
 ├── Assets/
 │   ├── Scripts/
 │   │   ├── TagAgent.cs           # Agent logic (Chaser + Runner shared)
-│   │   └── TagArenaManager.cs    # Episode management, rewards, reset
+│   │   ├── TagArenaManager.cs    # Episode management, rewards, reset, StatsRecorder
+│   │   └── Reward/
+│   │       ├── TagReward.cs          # pure PBS reward math (own asmdef, unit-tested)
+│   │       └── TagGame.Reward.asmdef
+│   ├── Tests/EditMode/           # NUnit EditMode tests for TagReward
 │   ├── Prefabs/
-│   │   ├── ChaserAgent.prefab    # teamId=0, red, starts at (-4, 1, 0)
-│   │   ├── RunnerAgent.prefab    # teamId=1, blue, starts at (+4, 1, 0)
-│   │   └── TagArena.prefab       # 20x20 floor + 4 walls + 2 agents
+│   │   ├── ChaserAgent.prefab    # Behavior "Chaser", teamId=0, red
+│   │   ├── RunnerAgent.prefab    # Behavior "Runner", teamId=1, blue
+│   │   └── TagArena.prefab       # 20x20 floor + 4 walls + 2 agents + manager + camera
 │   └── Scenes/
-│       └── TagArena.unity
+│       └── Scene_V2.unity        # ACTIVE scene — 8 parallel TagArena copies (was SampleScene/TagArena)
+├── docs/
+│   ├── progress.md               # session log (newest first)
+│   ├── Theory.md                 # paper-ready empirical findings
+│   └── superpowers/{specs,plans} # brainstorm specs + implementation plans
+├── experiments/configs/          # archived copies of trainer configs (reproducibility)
 ├── results/                      # Training outputs (auto-created by mlagents-learn)
 ├── CLAUDE.md                     # This file
 └── .gitignore
 
 
 ├── C:/Users/david/Documents/PROGRAMMING/ML_AGENTS_GIT/ml-agents/config/poca/
-│   └── TagMApoca.yaml            # MA-POCA trainer config
+│   ├── TagMApoca.yaml            # production MA-POCA config (5M steps)
+│   ├── TagMApoca_smoke.yaml      # 50k mechanical-smoke config
+│   ├── TagMApoca_sparse.yaml     # validation arm A — no distance shaping (coef 0)
+│   └── TagMApoca_shaped.yaml     # validation arm B — PBS distance shaping (coef 0.5)
 ```
 
 ---
@@ -129,6 +141,22 @@ Albert also had a couple moments of throwing the cubes at Kai and spinning with 
 > `Runner` (Behavior Name `Runner`, TeamId 1) — the ML-Agents-documented setup for asymmetric games.
 > Each role is its own `SimpleMultiAgentGroup`, which is what makes this genuine MA-POCA. Prefabs now
 > use `MaxStep: 0` (arena owns termination) and carry a `DecisionRequester` (period 5); `spawnY` is `0.5`.
+>
+> **Updated 2026-06-17 (reward-shaping experiment, branch `feat/sparse-vs-shaped-comparison`).**
+> - **Movement fix:** Rigidbody `m_Constraints` is now `80` (FreezeRotation X+Z) — was `10`
+>   (FreezePosition X+Z), which froze horizontal movement. Agents now move on X/Z, stay upright.
+> - **Parallel training:** the active scene `Scene_V2.unity` runs **8 parallel `TagArena` copies**
+>   (was 4). All chasers share Behavior `Chaser`, all runners share `Runner`, so the trainer
+>   aggregates experience across arenas. Arenas are spaced ≥35u apart (raycast length 10 + arena
+>   half-width 10 ⇒ centres must be >30u apart to avoid cross-arena ray/collision bleed).
+>   Observations use `localPosition`, so they are arena-relative and position-independent.
+> - **Reward shaping as an experiment:** the chaser can receive **potential-based shaping** (PBS,
+>   Ng et al. 1999) toward the runner, driven by the config key `environment_parameters.
+>   distance_shaping_coef` (0 = sparse arm, 0.5 = shaped arm). Math lives in `TagReward.cs`
+>   (own asmdef, unit-tested). `TagArenaManager` logs `Environment/Catch` and
+>   `Environment/TimeToCatch` via `StatsRecorder`. See `docs/superpowers/specs|plans/2026-06-17-*`.
+> - Workload is **environment/IPC-bound, not compute-bound** → the GPU is irrelevant; scale arenas
+>   (Editor sweet spot ~8–12) or build headless (`--no-graphics`) for the 5M run. See `docs/Theory.md`.
 
 ### TagAgent.cs — Key Facts
 - Inherits from `Unity.MLAgents.Agent`
@@ -330,11 +358,16 @@ Use for long-running tasks:
 
 1. ~~Agents are floating, and random spawning when learning is active.~~ **Fixed** in the
    2026-06-15 refactor: `spawnY` lowered to `0.5` so the box rests flush on the floor.
-   (Still verify in the Editor that Rigidbody `m_Constraints = 10` freezes only Rotation X/Z,
-   not Position X/Z.)
-2. **Open follow-up:** arena reset is driven from the chaser's `OnEpisodeBegin`, which fires
+   (Edit-mode float also fixed 2026-06-17: authored agent `y` and TagArena nested overrides → `0.5`.)
+2. ~~Rigidbody `m_Constraints = 10` — verify it freezes Rotation X/Z, not Position X/Z.~~
+   **Resolved 2026-06-17:** `10` actually meant FreezePosition X+Z, which froze horizontal movement
+   (W/S did nothing, A/D worked). Corrected to `80` (FreezeRotation X+Z). Movement verified.
+3. **Open follow-up:** arena reset is driven from the chaser's `OnEpisodeBegin`, which fires
    synchronously during the first `EndGroupEpisode()` — so the runner is repositioned before its
    own group episode ends. Works, but the canonical pattern is "end both groups, then reset once".
+4. **Cross-arena bleed (8-arena setup):** keep TagArena copies ≥35u apart. Closer than ~30u and an
+   agent's raycast (length 10) or physics collider can reach a neighbour arena → phantom observations
+   or false catches.
 
 ---
 

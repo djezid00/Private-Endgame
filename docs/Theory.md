@@ -144,25 +144,95 @@ design decision to **justify and ideally ablate**:
 > under the *pure* terminal reward, or is reward shaping necessary? Running both (sparse vs shaped) is
 > itself a result, not just an implementation detail.
 
+**Decision (2026-06-17):** we adopt **option 3 (potential-based shaping)** and make the question above
+the experiment itself — see §9. Lever 1 (naïve distance-delta) was rejected as not policy-invariant;
+lever 2 (chaser speed advantage) is held in reserve as a documented fallback rather than a default.
+
 ---
 
 ## 7. Metrics to log for the thesis (all already emitted to TensorBoard)
 
 - `Self-play/ELO` per behavior — divergence from 1200 = competitive separation.
 - `Environment/CumulativeReward` and `Environment/GroupCumulativeReward` — opposing curves = arms race.
-- **Mean episode length** (time-to-catch) and **catch rate** — interpretable skill proxies (§4).
+- **Mean episode length** (`Environment/EpisodeLength`, time-to-catch proxy) — interpretable skill metric.
 - `Policy/Entropy` — exploration→exploitation transition (should fall as policies sharpen).
 - `Losses/PolicyLoss`, `Losses/ValueLoss`, `Losses/BaselineLoss` — training stability; BaselineLoss
   doubles as the POCA-vs-PPO evidence (§2).
+- **Custom stats (added 2026-06-17, via `StatsRecorder` in `TagArenaManager`):**
+  `Environment/Catch` (1 on a catch, 0 on stalemate; averaged ⇒ **catch rate**) and
+  `Environment/TimeToCatch` (arena steps at catch; averaged over catches ⇒ **mean time-to-catch**).
+  These make catch rate and time-to-catch first-class TensorBoard curves rather than inferred quantities.
 
 ---
 
 ## 8. Status / next experiments
 
 - ✅ Pipeline mechanically validated end-to-end; confirmed genuine MA-POCA.
-- ▶ **Next:** a short validation run (~300–500k steps) on the full `TagMApoca.yaml` to confirm the
-  curves *move* (ELO diverges, rewards oppose, episode length drops) — first real learning signal.
-- Before the multi-day 5M run: (a) raise arena count for throughput + sample diversity; (b) decide the
-  reward-shaping question in §6 (recommend running it as a sparse-vs-shaped comparison).
+- ✅ Reward-shaping experiment **designed + planned** (§9; spec/plan `docs/superpowers/{specs,plans}/
+  2026-06-17-chaser-reward-shaping*`); arena count raised to **8** (§10).
+- ▶ **Next:** run the two **400k validation arms** (sparse vs shaped, same seed) and apply the
+  success rule (catch rate ↑ AND episode length ↓ AND ELO diverging).
+- Before the multi-day 5M run: build a **headless `--no-graphics` standalone** for throughput (§10).
 - Optional but high-value for the thesis: a **PPO (independent-learner) vs MA-POCA** comparison —
   this is what *justifies the choice* of MA-POCA rather than assuming it.
+
+---
+
+## 9. Designed experiment: sparse vs shaped (potential-based shaping)
+
+To answer §6's open question rigorously we run **two arms, identical except the chaser's distance term**:
+
+| | Sparse arm | Shaped arm |
+|---|---|---|
+| Terminal reward (±1 + time/survival bonus) | yes | yes |
+| Chaser −0.001/step time pressure | yes | yes |
+| Chaser distance shaping (PBS) | **off** (`coef = 0`) | **on** (`coef = 0.5`) |
+| Kinematics (chaser/runner `moveSpeed`) | 5 / 5 | 5 / 5 |
+| Observations, network, self-play, seed | identical | identical |
+
+**Potential-based shaping (PBS), Ng, Harada & Russell (1999).** Define a potential over states
+`Φ(s) = −coef · (planarDist(chaser, runner) / maxDist)` (closer ⇒ higher), and add to the chaser at
+each step `F = γ·Φ(s′) − Φ(s)` with `γ = 0.99` (the trainer's discount). `maxDist` ≈ 28 (arena
+diagonal); `coef = 0.5` keeps the telescoped shaping below the ±1 terminal magnitude.
+
+> **Why PBS is the right choice for the thesis.** PBS is *policy-invariant*: adding `F` does not change
+> the optimal policy of the underlying MDP — only the speed of learning. So if the shaped arm learns
+> pursuit and the sparse arm does not (or does so far slower), the conclusion is **"shaping improved
+> sample efficiency, not the target behavior"** — the emergence claim survives, and the "did you just
+> engineer the behavior?" critique is pre-empted by construction. (The multi-agent self-play setting
+> weakens the single-agent invariance theorem somewhat, but the argument and citation remain the
+> standard, defensible framing.)
+
+**Success rule (pre-registered).** An arm counts as *learning* only if, by 400k steps, **catch rate
+rises above the ~15 % random baseline AND mean episode length falls below ~393 decision steps AND ELO
+diverges from 1200 in opposing directions**. If both arms stay flat near baseline, re-run with a **6/5
+chaser speed edge** (documented fallback); a persistent stall under equal speed is itself a reportable
+result about the difficulty of equal-speed pursuit.
+
+**Reproducibility.** The arm is selected entirely from the trainer config
+(`environment_parameters.distance_shaping_coef`), not a hand-set Editor field, and both configs are
+archived in `experiments/configs/`.
+
+---
+
+## 10. Parallelism & hardware (validation setup)
+
+**Hardware (training laptop):** Intel i7-9750H (6 cores / 12 threads), 16 GB RAM, NVIDIA GTX 1660 Ti
+(4 GB) + Intel UHD 630.
+
+Combined with the §5 finding that the workload is **environment/IPC-bound, not compute-bound**:
+
+- **The GPU is effectively irrelevant** for this project. PyTorch is the CPU build, the network is tiny
+  (256×2), and gradient updates are ~6 % of wall-clock. Slow training must not be blamed on "no CUDA".
+- **Arena count raised 4 → 8** for the validation runs (held constant across both arms so it does not
+  confound the comparison). On a 6c/12t CPU training *in the Editor* (single Unity process, mostly
+  main-thread physics, sharing cores with the Python trainer) the practical sweet spot is **~8–12
+  arenas**; beyond ~16 the main thread saturates and steps/s stops scaling.
+- **Cross-arena spacing constraint:** arenas must sit **≥35 u apart** (centres). The raycast sensor
+  length is 10 u and each arena is 20×20 (half-width 10 u), so centres closer than ~30 u let an agent's
+  rays or physics collider reach a neighbour arena → phantom observations or false catches. The 8 copies
+  are laid out on the X axis at ≥35 u spacing, all at z = 0.
+- **Biggest lever for the multi-day 5M run is *not* more in-Editor arenas — it is not rendering.**
+  Building a **headless standalone and training against it with `--no-graphics`** removes per-frame
+  render cost and enables true multi-process parallelism (`--num-envs`) across the CPU cores. This is
+  flagged as its own task before the 5M run.

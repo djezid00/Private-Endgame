@@ -502,7 +502,7 @@ cd /d C:\Users\david\Documents\PROGRAMMING\ML_AGENTS_GIT\ml-agents
 mlagents-learn config/poca/TagMApoca_sparse.yaml --run-id=TagVal_sparse_01 --seed 12345
 ```
 When it prints `Start training by pressing the Play button`, press Play in Unity.
-Expected: both `Chaser` and `Runner` connect; summaries every 10k steps; runs to 400k; `.onnx` exported; clean exit; no NaNs. (~45 min at 4 arenas.)
+Expected: both `Chaser` and `Runner` connect; summaries every 10k steps; runs to 400k; `.onnx` exported; clean exit; no NaNs. (~25-35 min at 8 arenas; arena count must be identical for both arms.)
 
 - [ ] **Step 2: Run the SHAPED arm with the same seed**
 

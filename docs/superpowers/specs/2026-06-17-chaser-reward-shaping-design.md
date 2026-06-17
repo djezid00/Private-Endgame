@@ -80,7 +80,8 @@ unchanged in both arms.
 ## Run protocol
 
 1. Implement the code + config changes above.
-2. Run both arms with the **same `--seed`** for fairness (~45 min/arm at 4 arenas on CPU).
+2. Run both arms with the **same `--seed`** for fairness (~25-35 min/arm at 8 arenas on CPU; the
+   arena count is held identical across both arms so it does not confound the comparison).
    - Conda is only available in the Anaconda Prompt; Claude prepares the commands, user runs them and
      presses Play (see CLAUDE.md).
 3. Capture curves via TensorBoard → Playwright (catch rate, episode length, ELO, reward).
