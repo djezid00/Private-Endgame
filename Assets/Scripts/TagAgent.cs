@@ -18,6 +18,14 @@ public class TagAgent : Agent
     public float moveSpeed  = 5f;   // units/second for forward/back movement
     public float turnSpeed  = 180f; // degrees/second for left/right rotation
 
+    [Header("Reward Shaping (chaser only)")]
+    public float arenaDiagonal = 28.28f; // max chaser↔runner planar distance (20x20 floor), normalises Φ
+    public float shapingGamma  = 0.99f;  // MUST match trainer extrinsic.gamma
+
+    // Set once per episode from environment_parameters (0 in the sparse arm).
+    private float distanceShapingCoef = 0f;
+    private float prevPotential       = 0f;
+
     // ─────────────────────────────────────────────
     // PRIVATE STATE
     // ─────────────────────────────────────────────
@@ -44,7 +52,17 @@ public class TagAgent : Agent
     public override void OnEpisodeBegin()
     {
         if (teamId == 0)
+        {
             arena.ResetArena();
+
+            // Select this arm's shaping coefficient from the trainer config
+            // (environment_parameters.distance_shaping_coef). 0 ⇒ sparse arm.
+            distanceShapingCoef = Academy.Instance.EnvironmentParameters
+                .GetWithDefault("distance_shaping_coef", 0f);
+
+            // Seed Φ from the freshly-reset spawn so the first PBS delta is well-defined.
+            prevPotential = CurrentPotential();
+        }
 
         // Runner does nothing here — it just waits for chaser's reset to place it.
     }
@@ -85,6 +103,16 @@ public class TagAgent : Agent
         // TOTAL: 18 floats — must match VectorObservationSize in BehaviorParameters
     }
 
+    // Current potential Φ(s) for the chaser, from live positions. Uses localPosition
+    // to match the observation frame (both agents are children of the same arena).
+    private float CurrentPotential()
+    {
+        TagAgent opponent = arena.GetOpponent(this);
+        return TagReward.Potential(transform.localPosition,
+                                   opponent.transform.localPosition,
+                                   distanceShapingCoef, arenaDiagonal);
+    }
+
     // ─────────────────────────────────────────────
     // ON ACTION RECEIVED — called every FixedUpdate step when the trainer sends actions
     // actions.ContinuousActions[0] = move  (-1 = back, 0 = stop, +1 = forward)
@@ -112,6 +140,12 @@ public class TagAgent : Agent
             // Small negative reward every step → chaser is punished for wasting time
             // This creates urgency: catch the runner as fast as possible.
             AddReward(-0.001f);
+
+            // Potential-based shaping: reward closing distance to the runner.
+            // Policy-invariant (Ng et al. 1999). No-op in the sparse arm (coef 0 ⇒ Φ ≡ 0).
+            float curPotential = CurrentPotential();
+            AddReward(TagReward.ShapingDelta(prevPotential, curPotential, shapingGamma));
+            prevPotential = curPotential;
 
             // Only the chaser ticks the arena step clock.
             // If the runner also called arena.Step(), the timer would advance
