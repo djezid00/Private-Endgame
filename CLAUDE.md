@@ -260,6 +260,16 @@ cd <ML_AGENTS_REPO_ROOT>
 mlagents-learn config/TagMApoca.yaml --run-id=TagRun_01 --train
 ```
 
+### Validation runs — sparse vs shaped (2026-06-17 experiment)
+Run both arms with the **same seed** (only `distance_shaping_coef` differs: 0 vs 0.5). `--train` is
+deprecated/default; press Play in Unity when prompted. (Configs archived in `experiments/configs/`.)
+```bash
+mlagents-learn config/poca/TagMApoca_sparse.yaml --run-id=TagVal_sparse_01 --seed 12345
+mlagents-learn config/poca/TagMApoca_shaped.yaml --run-id=TagVal_shaped_01 --seed 12345
+```
+Success rule (per arm): catch rate ↑ AND mean episode length ↓ AND ELO diverging. Both arms flat near
+the random baseline ⇒ fallback: set chaser prefab `moveSpeed` 5→6 and re-run. See `docs/Theory.md` §9.
+
 ### Resume a Training Run
 ```bash
 mlagents-learn config/TagMApoca.yaml --run-id=TagRun_01 --resume

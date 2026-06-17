@@ -32,8 +32,25 @@ compute-bound → **GPU is irrelevant** (CPU PyTorch, tiny net). Editor sweet sp
 (removes render overhead, enables `--num-envs`). Kept arena count unchanged for the 400k validation
 (quick, and must stay constant across arms). Arena scaling = its own task before the 5M run.
 
+### Execution (subagent-driven, same session)
+Plan implemented task-by-task; all committed on `feat/sparse-vs-shaped-comparison`:
+- `e9828ef` — Task 1: pure `TagReward` PBS math + asmdefs + 5 EditMode unit tests.
+- `99bc2db` — Task 2: config-driven PBS shaping in `TagAgent` (chaser only; reads
+  `distance_shaping_coef` per episode, telescoping `F = γΦ′−Φ`).
+- `a335976` — Task 3: `StatsRecorder` logs `Environment/Catch` + `Environment/TimeToCatch`.
+- `66b9b36` — Task 4: `TagMApoca_sparse.yaml` / `TagMApoca_shaped.yaml` (in ml-agents repo +
+  archived in `experiments/configs/`); diff = only the comment + coef (0.0 vs 0.5).
+- `028a468` — scene scaled to 8 parallel arenas.
+
+**Verified in-Editor (human):** clean recompile (no Console errors); **EditMode tests 5/5 passed**
+(results `Assets/Tests/EditMode/TestResults_20260617_172304.xml`); prefab shows Arena Diagonal 28.28 /
+Shaping Gamma 0.99. Both branches pushed to `origin`.
+
 ### Next
-Execute the plan (subagent-driven or inline), then run the two validation arms.
+Task 5 in progress: running validation arms **same seed 12345** —
+`TagVal_sparse_01` (coef 0) then `TagVal_shaped_01` (coef 0.5), 400k each. Then TensorBoard→Playwright
+capture and apply the success rule (catch rate ↑ AND episode length ↓ AND ELO diverge). Results will be
+written into `docs/Theory.md` once both arms finish.
 
 ---
 
