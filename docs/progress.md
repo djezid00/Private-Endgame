@@ -46,34 +46,34 @@ Plan implemented task-by-task; all committed on `feat/sparse-vs-shaped-compariso
 (results `Assets/Tests/EditMode/TestResults_20260617_172304.xml`); prefab shows Arena Diagonal 28.28 /
 Shaping Gamma 0.99. Both branches pushed to `origin`.
 
-### Task 5 — Arm A (sparse) DONE; Arm B pending
-`TagVal_sparse_01` (coef 0, seed 12345, 400k, 8 arenas) completed. **Raw final-window metrics**
-(snapshot from `results/TagVal_sparse_01/run_logs/`, NOT yet interpreted — full trajectory is in
-TensorBoard, and the verdict needs Arm B for comparison):
+### Task 5 — BOTH arms DONE + analyzed (2026-06-20)
+`TagVal_sparse_01` (coef 0) and `TagVal_shaped_01` (coef 0.5), same seed 12345, 400k, 8 arenas.
+Data pulled via the TensorBoard data API; curves captured with Playwright →
+`docs/figures/validation/{tb_overview,tb_elo,tb_catch_episodelen}.png`. Full write-up in
+**`docs/Theory.md` §11**.
 
-| metric (final window) | Chaser | Runner |
+**Result — both arms learn; shaping clearly accelerates it (no fallback needed):**
+
+| metric (final window) | Sparse | Shaped |
 |---|---|---|
-| ELO | 1212.6 | 1189.3 |
-| EpisodeLength.mean | 386.0 | 399.0 |
-| CumulativeReward.mean | −1.937 | +1.998 |
-| GroupCumulativeReward.mean | −0.91 | +0.94 |
-| Catch.mean (catch rate) | ~0.077 | ~0.08 |
-| Entropy.mean | 1.43 | — |
+| ELO gap (Chaser−Runner) | +21.9 | **+72.7** (≈3×) |
+| Catch rate (Chaser) | ~0.08 | **~0.21** (≈2.5–3×) |
+| Episode length (Chaser) | 386 | **374** |
+| Group Cum. Reward — Chaser (shaping-independent) | −0.91 | **−0.75** |
 
-Read: at 400k the sparse arm is still near the random-baseline regime — episode length ≈ the 400-cap
-(mostly stalemate), catch rate ~8%, ELO gap only ~23 pts (chaser ahead), entropy still ~1.43 (near
-random). `Chaser.TimeToCatch.mean = 0.0` is a final-window artifact (no catch sampled in the last
-window), not a real zero — use the TensorBoard curve. **Do not conclude yet** — compare against the
-shaped arm tomorrow.
+Key point: `GroupCumulativeReward` (the ±1 game outcome, identical across arms, NOT inflated by the
+shaping term) improved more in the shaped arm → genuinely more wins, not just bigger reward numbers.
+Caveats: 400k is short (both still near baseline absolutely, entropy ~1.43); `CumulativeReward` not
+comparable across arms (includes shaping); γ<1 weakens strict PBS invariance slightly.
+
+**Known bug found:** `Environment/TimeToCatch` logs all-zeros — the value written at catch isn't the
+intended step count. Episode Length is the working time-to-catch proxy. **Fix before it's citable.**
 
 ### Next session (resume here)
-1. Run **Arm B**: `mlagents-learn config/poca/TagMApoca_shaped.yaml --run-id=TagVal_shaped_01 --seed 12345`
-   (coef 0.5), press Play. ~25–35 min.
-2. Launch `tensorboard --logdir results` (2nd Anaconda Prompt); Claude drives Playwright to screenshot
-   ELO / EpisodeLength / Catch / TimeToCatch / CumulativeReward for **both** run-ids → `docs/figures/validation/`.
-3. Apply the strict success rule (catch rate ↑ AND episode length ↓ AND ELO diverge) per arm; if both
-   flat near baseline → 6/5 chaser-edge fallback. Write the sparse-vs-shaped comparison into `docs/Theory.md`.
-4. Then `superpowers:finishing-a-development-branch`.
+1. **Fix the `TimeToCatch` stat** (it writes 0 — investigate what `stepCount` holds at `OnAgentTagged`).
+2. Build a **headless `--no-graphics` standalone** (Theory.md §10) for the long run.
+3. Run the **multi-M comparison** (optionally + seeds for variance, + PPO-vs-MA-POCA arm).
+4. When ready to integrate this branch → `superpowers:finishing-a-development-branch`.
 
 ---
 

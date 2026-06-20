@@ -170,9 +170,10 @@ lever 2 (chaser speed advantage) is held in reserve as a documented fallback rat
 - ✅ Pipeline mechanically validated end-to-end; confirmed genuine MA-POCA.
 - ✅ Reward-shaping experiment **designed + planned** (§9; spec/plan `docs/superpowers/{specs,plans}/
   2026-06-17-chaser-reward-shaping*`); arena count raised to **8** (§10).
-- ▶ **Next:** run the two **400k validation arms** (sparse vs shaped, same seed) and apply the
-  success rule (catch rate ↑ AND episode length ↓ AND ELO diverging).
-- Before the multi-day 5M run: build a **headless `--no-graphics` standalone** for throughput (§10).
+- ✅ **400k validation arms run + analyzed (§11):** both arms learn; shaping ≈ 3× the ELO separation
+  and ≈ 2.5–3× the catch rate. No fallback needed.
+- ▶ **Next:** fix the `TimeToCatch` stat (logs zeros), then build a **headless `--no-graphics`
+  standalone** (§10) and run the long multi-M comparison.
 - Optional but high-value for the thesis: a **PPO (independent-learner) vs MA-POCA** comparison —
   this is what *justifies the choice* of MA-POCA rather than assuming it.
 
@@ -236,3 +237,75 @@ Combined with the §5 finding that the workload is **environment/IPC-bound, not 
   Building a **headless standalone and training against it with `--no-graphics`** removes per-frame
   render cost and enables true multi-process parallelism (`--num-envs`) across the CPU cores. This is
   flagged as its own task before the 5M run.
+
+---
+
+## 11. Validation results — sparse vs shaped, 400k steps
+
+Both arms (`TagVal_sparse_01`, coef 0; `TagVal_shaped_01`, coef 0.5) ran 400k steps, **same seed
+12345**, 8 arenas, identical except the chaser distance-shaping term. ELO and the `Lesson Number/
+distance_shaping_coef` curve confirm the arm was correctly selected from config (coef held at 0.0 vs
+0.5 throughout). POCA confirmed in both (finite `Losses/Baseline Loss`).
+
+### Headline numbers (final-window values)
+
+| Metric (Chaser unless noted) | Sparse (coef 0) | Shaped (coef 0.5) | Reading |
+|---|---|---|---|
+| Self-play/ELO — Chaser | 1212.6 | **1236.4** | shaped chaser pulls further ahead |
+| Self-play/ELO — Runner | 1190.7 | **1163.7** | shaped runner pushed further down |
+| **ELO gap (Chaser−Runner)** | **+21.9** | **+72.7** | **shaping ≈ 3× the competitive separation** |
+| Environment/Catch (catch rate) | ~0.08 | **~0.21** | shaping ≈ 2.5–3× the catch rate |
+| Environment/Episode Length | 386 | **374** | shaped catches sooner (lower = better; both still near the 400-cap) |
+| **Group Cumulative Reward — Chaser** | **−0.91** | **−0.75** | true game outcome (shaping-independent) — shaped chaser loses less |
+| Group Cumulative Reward — Runner | +0.94 | +0.86 | shaped runner wins less, consistent |
+| Cumulative Reward — Chaser (individual) | −1.94 (pinned ≈ −2) | +2.78 (rising) | shaped chaser is actively closing distance (incl. shaping term — see caveat) |
+| Policy/Entropy | ~1.43 | ~1.43 | both still high — neither policy has converged at 400k |
+
+### Figures (TensorBoard, smoothing 0.8; blue/cyan = Chaser, red/pink = Runner; brighter = shaped)
+
+![All validation metrics, sparse vs shaped](figures/validation/tb_overview.png)
+*Fig. 1 — Overview of all logged scalars for both arms (validation runs only).*
+
+![Self-play ELO divergence](figures/validation/tb_elo.png)
+*Fig. 2 — `Self-play/ELO`. Both arms diverge from 1200 in opposing directions; the shaped arm's chaser
+rises higher (~1236) and its runner falls lower (~1164), i.e. a markedly larger competitive gap.*
+
+![Catch rate and episode length](figures/validation/tb_catch_episodelen.png)
+*Fig. 3 — `Environment/Catch` (catch rate) and `Environment/Episode Length` (time-to-catch proxy). The
+shaped arm sustains a higher catch rate and a lower episode length than the sparse arm.*
+
+### Interpretation
+
+1. **Neither arm is flat at the random baseline → no 6/5 fallback needed.** Both show the chaser
+   improving (ELO up, catch rate up, episode length down) — so even the *pure terminal reward* (sparse
+   arm) begins to produce pursuit under MA-POCA + self-play at equal speed. That directly answers the
+   research question's first half: emergence does start without shaping.
+2. **Shaping substantially accelerates learning** — ~3× the ELO separation, ~2.5–3× the catch rate, and
+   a lower episode length at the same step budget. This is the expected PBS effect: faster learning, and
+   (by the policy-invariance argument, §9) the *same* target behavior — so the emergence claim survives.
+3. **The cleanest, shaping-independent evidence is `Group Cumulative Reward`** (the ±1 game outcome +
+   bonuses, identical in both arms and *not* affected by the shaping term): the shaped chaser improved to
+   −0.75 vs the sparse chaser's −0.91. So shaping produced **genuinely more wins**, not merely larger
+   reward numbers from the extra term.
+
+### Caveats (for honest reporting)
+
+- **400k is short.** Both policies are still near the baseline regime in absolute terms (episode length
+  still close to the 400-cap, catch rate < 25 %, entropy still ~1.43). This run **validates the pipeline
+  and the shaping benefit and justifies the 5M run** — it does **not** show solved/emergent advanced
+  tactics yet.
+- **`Cumulative Reward` is not comparable across arms** (the shaped arm's individual reward includes the
+  shaping term). Use `Group Cumulative Reward`, ELO, catch rate, and episode length for cross-arm claims.
+- **γ < 1 weakens strict PBS invariance.** With `F = γΦ′−Φ` and a persistently negative Φ, the discount
+  introduces a small standing per-step reward for *being* close (not only for closing). The effect is
+  minor at γ = 0.99, but it means "policy-invariant" holds approximately, not exactly — worth stating in
+  the thesis rather than overclaiming.
+- **`Environment/TimeToCatch` logged all-zeros** — a stat bug (the value written at catch is not the
+  intended step count). Episode Length is the working time-to-catch proxy; the custom stat needs a fix
+  before it's citable. **Follow-up flagged.**
+
+### Verdict
+
+Pipeline + experiment design validated; **shaping clearly helps and the sparse arm also learns**. Next:
+fix the `TimeToCatch` stat, then scale up (headless build, §10) and run the long (multi-M) comparison —
+optionally adding seeds for variance bars and the PPO-vs-MA-POCA arm (§8).
