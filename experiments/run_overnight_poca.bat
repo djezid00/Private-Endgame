@@ -23,7 +23,7 @@ REM  (more CPU/RAM; measure first - see the arena bake-off notes).
 REM ============================================================================
 
 REM === EDIT THIS: full path to your built headless executable ===
-set "ENV=C:\Users\david\Documents\PROGRAMMING\UnityProjects\TagMApoca_V1\Build\TagHeadless.exe"
+set "ENV=C:\Users\david\Documents\PROGRAMMING\UnityProjects\TagMApoca_V1\Build\TagMApoca_V1.exe"
 
 REM ML-Agents repo root (configs are read relative to here)
 cd /d C:\Users\david\Documents\PROGRAMMING\ML_AGENTS_GIT\ml-agents

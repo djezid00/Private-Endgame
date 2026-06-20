@@ -204,6 +204,8 @@ MonoBehaviour:
   teamId: 0
   moveSpeed: 5
   turnSpeed: 180
+  arenaDiagonal: 28.28
+  shapingGamma: 0.99
 --- !u!65 &7492747176827302410
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -235,8 +237,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 3a5c9d521e5ef4759a8246a07d52221e, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   DecisionPeriod: 5
   DecisionStep: 0
   TakeActionsBetweenDecisions: 1
