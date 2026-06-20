@@ -274,6 +274,12 @@ rises higher (~1236) and its runner falls lower (~1164), i.e. a markedly larger 
 *Fig. 3 — `Environment/Catch` (catch rate) and `Environment/Episode Length` (time-to-catch proxy). The
 shaped arm sustains a higher catch rate and a lower episode length than the sparse arm.*
 
+![Policy / critic diagnostics](figures/validation/tb_policy.png)
+*Fig. 4 — Policy group (per behavior, both arms): `Entropy` stays high (~1.40–1.43, policies not yet
+converged at 400k); `Extrinsic Value Estimate` and `Extrinsic Baseline Estimate` diverge (chaser
+negative, runner positive — the critic correctly predicts who is winning); `Learning Rate` decays
+linearly; `Epsilon` decays; `Beta` constant — i.e. the optimizer schedules behaved as configured.*
+
 ### Interpretation
 
 1. **Neither arm is flat at the random baseline → no 6/5 fallback needed.** Both show the chaser
