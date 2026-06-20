@@ -155,14 +155,15 @@ public class TagArenaManager : MonoBehaviour
         // Chaser group failed to catch the runner — penalise it
         chaserGroup.AddGroupReward(-1f);
 
+        // Outcome metric — recorded BEFORE ending the episode (the group-end call synchronously
+        // resets the arena; see OnAgentTagged). 0 = no catch this episode (averaged ⇒ catch rate).
+        stats.Add("Environment/Catch", 0f);
+
         // Timeout is a TRUNCATION, not a true terminal state, so use
         // GroupEpisodeInterrupted: it bootstraps the value estimate at the cutoff
         // instead of treating it as a real end (correct for stalemate).
         chaserGroup.GroupEpisodeInterrupted();
         runnerGroup.GroupEpisodeInterrupted();
-
-        // Outcome metric: 0 = no catch this episode (averaged ⇒ catch rate).
-        stats.Add("Environment/Catch", 0f);
     }
 
     // ─────────────────────────────────────────────
@@ -203,14 +204,16 @@ public class TagArenaManager : MonoBehaviour
             runnerGroup.AddGroupReward(-1f);
         }
 
+        // Outcome metrics — recorded BEFORE ending the episode. EndGroupEpisode() synchronously
+        // runs the chaser's OnEpisodeBegin → ResetArena, which zeroes stepCount; reading it after
+        // that was the bug that logged TimeToCatch = 0. stepCount here is the catch time in
+        // physics steps (1 = catch; averaged ⇒ catch rate / mean steps-to-catch).
+        stats.Add("Environment/Catch", 1f);
+        stats.Add("Environment/TimeToCatch", stepCount);
+
         // A catch IS a true terminal state → EndGroupEpisode (no value bootstrap).
         chaserGroup.EndGroupEpisode();
         runnerGroup.EndGroupEpisode();
-
-        // Outcome metrics: 1 = catch (averaged ⇒ catch rate); stepCount = time-to-catch
-        // (averaged over catches only ⇒ mean steps to catch).
-        stats.Add("Environment/Catch", 1f);
-        stats.Add("Environment/TimeToCatch", stepCount);
     }
 
     // ─────────────────────────────────────────────
