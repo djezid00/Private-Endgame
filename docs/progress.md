@@ -5,6 +5,52 @@ Each entry is one working session. Newest at the top.
 
 ---
 
+## 2026-06-20 — Validation analysis, TimeToCatch fix, arena bake-off, 5M setup
+
+(Validation sparse-vs-shaped results captured + analyzed — see the 2026-06-17 "Task 5" section and
+`docs/Theory.md` §11; figures in `docs/figures/validation/`.)
+
+### New brainstorm → spec: the "1v1 rigor phase"
+Decided (phased) to lock a thesis-grade 1v1 result before any environment expansion. Spec:
+`docs/superpowers/specs/2026-06-20-1v1-rigor-phase-design.md` (commit `2351981`). Matrix = MA-POCA
+{sparse, shaped} × 3 seeds + 1 PPO sanity (PPO **deferred** to run after POCA). Key insight: at 1v1
+(singleton groups) MA-POCA ≈ PPO, so the *real* PPO-vs-POCA comparison belongs in the team-expansion
+phase.
+
+### TimeToCatch bug — FIXED + verified (commit `090f4b5`)
+Root cause (systematic-debugging): `stats.Add("Environment/TimeToCatch", stepCount)` ran *after*
+`EndGroupEpisode()`, which synchronously triggers the chaser's `OnEpisodeBegin → ResetArena` and
+zeroes `stepCount` → always logged 0. Fix: record `Catch`/`TimeToCatch` *before* the group-end calls
+(both `OnAgentTagged` and `TriggerStalemate`). Verified by the bake-off smoke runs (now logs ~290–585
+physics steps, not 0).
+
+### Arena bake-off — 16 chosen
+50k smoke, in-Editor: **12 arenas = 495 steps/s, 16 arenas = 553 steps/s (+12%)**; per-arena
+efficiency 41→35 (near the saturation knee). **Sticking with 16.** Caveat: in-Editor measurement;
+headless frees rendering CPU so its knee is higher (worth re-checking ≥16 against the headless build).
+
+### Artifacts created (commit `f487803`)
+- `TagMApoca_sparse_5M.yaml` / `TagMApoca_shaped_5M.yaml` (ml-agents `config/poca/` + archived in
+  `experiments/configs/`).
+- `experiments/run_overnight_poca.bat` — unattended 6-run batch (sparse×3, shaped×3) against the
+  headless build, per-run logs.
+
+### Next session (resume here)
+1. **User builds the headless player** (Unity: File > Build Settings > Windows Standalone > Build),
+   scene at 16 arenas, agents in **Default** behavior type with empty Model. Set the `ENV=` path in
+   `run_overnight_poca.bat`.
+2. (Optional) re-measure ~20–24 arenas against the headless build to see if a higher count wins.
+3. Run the overnight batch → 6 runs → trained `.onnx` per run + 250k-step checkpoints.
+4. Capture/aggregate (mean ± std across seeds), write results into `docs/Theory.md`.
+5. Then wire + run the deferred PPO sanity run; then `finishing-a-development-branch`.
+
+**Watching progress in Unity:** the validation `.onnx` already exist (e.g.
+`results/TagVal_shaped_01/Chaser.onnx`/`Runner.onnx` + checkpoints at 100k/200k/300k/400k under
+`TagVal_shaped_01/Chaser/`). Import into the prefab's Behavior Parameters > Model, set Behavior Type =
+Inference, press Play (no trainer) to watch. The 5M runs will produce stronger brains + more checkpoints.
+
+---
+
 ## 2026-06-17 — Reward-shaping experiment: brainstorm → spec → plan
 
 New branch: **`feat/sparse-vs-shaped-comparison`** (off `feat/ma-poca-asymmetric-refactor`).

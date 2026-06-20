@@ -225,10 +225,13 @@ Combined with the §5 finding that the workload is **environment/IPC-bound, not 
 
 - **The GPU is effectively irrelevant** for this project. PyTorch is the CPU build, the network is tiny
   (256×2), and gradient updates are ~6 % of wall-clock. Slow training must not be blamed on "no CUDA".
-- **Arena count raised 4 → 8** for the validation runs (held constant across both arms so it does not
-  confound the comparison). On a 6c/12t CPU training *in the Editor* (single Unity process, mostly
-  main-thread physics, sharing cores with the Python trainer) the practical sweet spot is **~8–12
-  arenas**; beyond ~16 the main thread saturates and steps/s stops scaling.
+- **Arena count raised 4 → 8 → 16** (held constant across runs so it does not confound comparisons).
+  On a 6c/12t CPU training *in the Editor* the main thread eventually saturates. **Measured bake-off
+  (50k smoke, in-Editor):** 12 arenas = **495 agent-steps/s**, 16 arenas = **553 steps/s** (+12%), but
+  per-arena efficiency fell (41 → 35 steps/s/arena) — i.e. approaching the saturation knee. **16 chosen.**
+  Caveat: measured in-Editor (with rendering); the **headless build frees rendering CPU**, so its knee
+  sits higher — re-measuring ≥16 against the headless build may justify going further.
+  Run-time at 16 (in-Editor): a 5M-per-behavior run ≈ ~5 h; headless ≈ ~2.5–3 h.
 - **Cross-arena spacing constraint:** arenas must sit **≥35 u apart** (centres). The raycast sensor
   length is 10 u and each arena is 20×20 (half-width 10 u), so centres closer than ~30 u let an agent's
   rays or physics collider reach a neighbour arena → phantom observations or false catches. The 8 copies
@@ -306,9 +309,12 @@ linearly; `Epsilon` decays; `Beta` constant — i.e. the optimizer schedules beh
   introduces a small standing per-step reward for *being* close (not only for closing). The effect is
   minor at γ = 0.99, but it means "policy-invariant" holds approximately, not exactly — worth stating in
   the thesis rather than overclaiming.
-- **`Environment/TimeToCatch` logged all-zeros** — a stat bug (the value written at catch is not the
-  intended step count). Episode Length is the working time-to-catch proxy; the custom stat needs a fix
-  before it's citable. **Follow-up flagged.**
+- **`Environment/TimeToCatch` logged all-zeros in these 400k runs** — a stat bug: it was recorded
+  *after* `EndGroupEpisode()`, which synchronously runs the chaser's `OnEpisodeBegin → ResetArena` and
+  zeroes `stepCount`. **Fixed 2026-06-20** (commit `090f4b5`: stats now recorded before the group-end
+  call) and **verified** (a 50k smoke after the fix logged plausible nonzero catch times ~290–585
+  physics steps). The 400k validation data above keeps Episode Length as its time-to-catch proxy; the
+  5M rigor runs will have a working `TimeToCatch`.
 
 ### Verdict
 
