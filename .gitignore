@@ -70,3 +70,6 @@ UpgradeLog*.htm
 # Exported EditMode/PlayMode test results (transient artifacts under Assets/)
 /[Aa]ssets/[Tt]ests/**/TestResults_*.xml
 /[Aa]ssets/[Tt]ests/**/TestResults_*.xml.meta
+
+# Playwright MCP scratch output (snapshots, console logs)
+.playwright-mcp/
