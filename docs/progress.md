@@ -5,6 +5,47 @@ Each entry is one working session. Newest at the top.
 
 ---
 
+## 2026-06-21 — 5M overnight batch running; sparse arm done = emergent chaser pursuit
+
+The unattended 6-run batch (`experiments/run_overnight_poca.bat`, headless `--no-graphics`, 16 arenas,
+5M steps/behavior each) is running. Started ~00:25; ~4.6 h/run.
+
+### Batch status (read from `batch_logs/` + `results/`)
+| Run | Status |
+|---|---|
+| `POCA_sparse_s1` / `s2` / `s3` | ✅ **Done** (5M, `Chaser.onnx` + `Runner.onnx` exported) |
+| `POCA_shaped_s1` | 🔄 Running (~1.8M / 5M at check time) |
+| `POCA_shaped_s2` / `s3` | ⏳ Queued (105-byte stub logs are harmless leftovers from an earlier non-conda attempt; overwritten when reached) |
+
+Whole batch expected to finish ~03:00–03:30 on 2026-06-22. The terminal stays on the "Starting…" line
+by design (each run's output is redirected to `batch_logs\*.log`; `.bat` prints "Batch complete" only
+after all 6).
+
+### HEADLINE — sparse arm (pure terminal reward) produces decisive emergent pursuit at 5M
+Final console figures (per-behavior, single seed each — preliminary until aggregated):
+- `POCA_sparse_s1`: **Chaser ELO 1890.7, Mean Group Reward +1.45** (catches, and catches *fast*).
+- `POCA_sparse_s2`: Runner ELO 685.5, Runner Group Reward −0.87 (runner loses ⇒ chaser dominates).
+- `POCA_sparse_s3`: Runner ELO 661.1, Runner Group Reward −0.94 (runner loses ⇒ chaser dominates).
+- **ELO gap ≈ 1200 pts chaser-favored** (vs ~22 pts at the 400k validation horizon), **consistent
+  across all 3 seeds.** This answers the research question's first half: **emergence happens without
+  shaping** given enough steps. Full write-up: `docs/Theory.md` §12.
+
+### Caveats recorded in Theory.md §12
+Console numbers are per-behavior/single-seed; catch rate, episode length, and mean ± std must come from
+aggregated TensorBoard data. Shaped arm not yet in (early shaped_s1 still mid-climb). No sparse-vs-shaped
+5M claim until shaped seeds finish.
+
+### Next session (resume here)
+1. Confirm all 6 runs complete (6 `results/POCA_*` folders, each with `Chaser.onnx` + `Runner.onnx`).
+2. Build the **seed-aggregation script** (mean ± std across seeds → error-band figures) and run it on
+   both arms → sparse-vs-shaped 5M figures + headline numbers into `docs/Theory.md` §12.
+3. Capture TensorBoard figures (Playwright) for the 5M runs; verify `Environment/TimeToCatch` now nonzero.
+4. Then: PPO sanity run (deferred), then `superpowers:finishing-a-development-branch`.
+5. (Fun) import a sparse 5M `.onnx` into the prefab (Behavior Type = Inference) and watch the trained
+   chaser play — **only after the batch finishes** (Editor Play competes with the headless batch for CPU).
+
+---
+
 ## 2026-06-20 — Validation analysis, TimeToCatch fix, arena bake-off, 5M setup
 
 (Validation sparse-vs-shaped results captured + analyzed — see the 2026-06-17 "Task 5" section and

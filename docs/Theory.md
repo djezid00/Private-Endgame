@@ -172,8 +172,10 @@ lever 2 (chaser speed advantage) is held in reserve as a documented fallback rat
   2026-06-17-chaser-reward-shaping*`); arena count raised to **8** (§10).
 - ✅ **400k validation arms run + analyzed (§11):** both arms learn; shaping ≈ 3× the ELO separation
   and ≈ 2.5–3× the catch rate. No fallback needed.
-- ▶ **Next:** fix the `TimeToCatch` stat (logs zeros), then build a **headless `--no-graphics`
-  standalone** (§10) and run the long multi-M comparison.
+- ✅ `TimeToCatch` stat fixed (`090f4b5`); **headless `--no-graphics` 16-arena build** done.
+- ▶ **5M rigor batch running (§12):** MA-POCA {sparse, shaped} × 3 seeds. **Sparse arm complete —
+  decisive emergent chaser pursuit (ELO ≈ 1890 vs ≈ 670, Group Reward ≈ +1.45) across all 3 seeds.**
+  Shaped arm in progress; full mean ± std aggregation + figures pending batch completion.
 - Optional but high-value for the thesis: a **PPO (independent-learner) vs MA-POCA** comparison —
   this is what *justifies the choice* of MA-POCA rather than assuming it.
 
@@ -321,3 +323,66 @@ linearly; `Epsilon` decays; `Beta` constant — i.e. the optimizer schedules beh
 Pipeline + experiment design validated; **shaping clearly helps and the sparse arm also learns**. Next:
 fix the `TimeToCatch` stat, then scale up (headless build, §10) and run the long (multi-M) comparison —
 optionally adding seeds for variance bars and the PPO-vs-MA-POCA arm (§8).
+
+---
+
+## 12. 5M rigor runs — preliminary result (batch in progress, 2026-06-21)
+
+The overnight batch (`experiments/run_overnight_poca.bat`, headless `--no-graphics`, **16 arenas**)
+runs the full rigor matrix: **MA-POCA {sparse, shaped} × 3 seeds**, each **5M steps/behavior**, on the
+headless standalone. Throughput held at ~**300 training-behavior steps/s** (≈ 600 agent-steps/s across
+both teams) ⇒ **~4.6 h per run**.
+
+**Status at time of writing:** sparse arm **complete (3 seeds)**; shaped arm **running** (seed 1 ≈ 36 %,
+seeds 2–3 queued). The numbers below are read from the **training console logs** (per-behavior, single
+seed each) and are a strong *preliminary* signal — the **final, thesis-grade analysis** (mean ± std
+across the 3 seeds, catch-rate / episode-length / ELO curves with error bands, sparse-vs-shaped figures)
+is produced once the batch finishes and is aggregated from the TensorBoard event files.
+
+### Headline — the sparse arm produces decisive, emergent pursuit at 5M
+
+This is the **direct answer to the research question's first half**: under the **pure terminal reward**
+(no distance shaping, equal 5/5 kinematics), MA-POCA + self-play **does** produce a competent chaser —
+and the result is **consistent across all three seeds**.
+
+| Sparse run (final, 5M) | Training behavior shown | ELO | Mean Group Reward | Reading |
+|---|---|---|---|---|
+| `POCA_sparse_s1` | Chaser | **1890.7** | **+1.45** | chaser catches, and catches *fast* (Group Reward > +1 ⇒ large time-bonus) |
+| `POCA_sparse_s2` | Runner | **685.5** | −0.87 | runner is losing ⇒ chaser dominates |
+| `POCA_sparse_s3` | Runner | **661.1** | −0.94 | runner is losing ⇒ chaser dominates |
+
+- **ELO separation of ≈ 1200 points** in the chaser's favor (chaser ≈ 1890 vs runner ≈ 660–690),
+  versus the ~22-point gap at the 400k validation horizon (§11). The arms race resolved **emphatically
+  toward the chaser** over the full run.
+- **`Mean Group Reward ≈ +1.45` for the chaser** (s1) is the shaping-independent game outcome: not just
+  "catches more often" but "catches **early**", since the terminal reward is `+1 + timeBonus` (timeBonus
+  up to +0.5 for fast catches). A mean of +1.45 implies most episodes end in a **fast** catch.
+- **Reproduced across 3 seeds** — the chaser wins in every seed (directly in s1; via the runner's
+  strongly negative Group Reward in s2/s3). This is exactly the variance check (§ "seed aggregation")
+  that single-seed RL claims lack.
+
+> **Thesis framing.** At 400k (§11) the honest verdict was "both arms begin to learn; shaping helps;
+> not yet emergent." At **5M the sparse arm has crossed into clearly emergent pursuit** — strong enough
+> that the open question flips from *"does it emerge?"* (yes) to *"how much does shaping accelerate /
+> change it, and does the runner ever recover a counter-strategy with more training?"* The shaped-arm
+> seeds (running now) will let us state the shaping effect at 5M with seed variance, not just at 400k.
+
+### Caveats (before quoting these in the thesis)
+
+- **Console figures are per-behavior and single-seed.** The table reports whichever team was *Training*
+  at the final log line; ELO is robust, but **catch rate, episode length, and cross-seed mean ± std must
+  come from the aggregated TensorBoard data**, not these lines. Treat §12 as preliminary until the batch
+  completes and is aggregated.
+- **The shaped arm is not yet in.** No sparse-vs-shaped 5M claim can be made until shaped seeds 1–3
+  finish. Early shaped_s1 logs (≈1.8M) showed the chaser still mid-climb (high PBS reward, Group Reward
+  not yet positive) — consistent with shaping front-loading distance-closing before catches consolidate;
+  judge it from the final curves.
+- **`Self-play/ELO` scale is not absolute.** A ~1890 vs ~670 split shows a large *relative* skill gap,
+  not an externally calibrated rating; report it as divergence from the 1200 start, as in §11.
+
+### What gets added here when the batch finishes
+
+1. Aggregated **mean ± std across 3 seeds per arm** for ELO, catch rate, episode length, group reward.
+2. **Sparse-vs-shaped 5M figures** with error bands (the seed-aggregation script).
+3. A working **`Environment/TimeToCatch`** curve (the stat bug was fixed pre-run, §11 caveat / `090f4b5`).
+4. Final **verdict on the shaping effect at scale** and whether the runner re-develops a counter.
