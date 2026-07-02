@@ -5,6 +5,28 @@ Each entry is one working session. Newest at the top.
 
 ---
 
+## 2026-07-02 (cont.) — PPO apparatus built + smoke gate PASSED (GO)
+
+Executed the PPO plan via subagent-driven development (branch `feat/ppo-comparison`):
+- **`b281945`** — `individual_terminal_reward` guarded mirror in `TagArenaManager` (spec + code-quality
+  review both approved). Mirrors terminal ±1 (+bonuses) via `Agent.AddReward`; flag defaults off ⇒ POCA
+  path byte-identical.
+- **`bac632b`** — PPO configs `TagMApoca_ppo_{sparse,shaped,smoke}.yaml` (ml-agents `config/ppo/` +
+  archived in `experiments/configs/`; spec review passed).
+- **`e0b5a2a`** — `experiments/run_ppo.bat` (2 runs, seed 1, `--no-graphics`).
+
+**Smoke gate `PPO_smoke_01` (50k, in-Editor, shaped) — all 3 criteria PASSED → GO:**
+1. Genuinely PPO — tags show `Policy Loss`+`Value Loss`, **no `Baseline Loss`** (POCA-only term absent).
+2. Tolerates grouped agents — clean run, checkpoints+`.onnx`, ELO computed (Chaser 1203.5 / Runner 1199.0).
+3. Individual terminal reward reaches PPO — **Runner reward ≈ +2.9** vs ~+2.0 expected without the flag
+   (runner has no shaping; the extra ≈+1.0 = the individual +1 survival terminal). Chaser ≈ +0.70.
+Approach 1 kept (no per-agent-EndEpisode fallback needed). Full method + evidence: `docs/Theory.md` §13.
+
+**Next:** USER rebuilds the headless player (binary must contain the new flag code) → runs
+`experiments/run_ppo.bat` (2×5M, ~1 overnight) → then 2×2 analysis + Theory §13 results + finish branch.
+
+---
+
 ## 2026-07-02 — Results committed; PPO comparison designed (2×2), plan next
 
 - **5M results committed + pushed** (`ae77192` on `feat/sparse-vs-shaped-comparison`): 12 brains in

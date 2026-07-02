@@ -408,3 +408,72 @@ optimum. The sparse chaser has **no such crutch — its only reward is the actua
 > runs (`PPO_sparse_s1`, `PPO_shaped_s1`) against the 3-seed POCA bands — to test (a) PPO ≈ POCA on the
 > sparse arm (emergent pursuit) and (b) the shaping farming-trap is algorithm-independent (PPO farms
 > too). Results will land in **§13**. Design: `docs/superpowers/specs/2026-07-02-ppo-comparison-design.md`.
+
+---
+
+## 13. PPO comparison arm (2×2 algorithm × reward) — method + smoke validation
+
+**Status: apparatus built and validated; the two 5M runs are pending.** This section records the
+experimental design and the pre-run smoke validation now; the 5M results (the 2×2 numbers and figures)
+complete it afterward.
+
+### Purpose
+
+At 1v1 each `SimpleMultiAgentGroup` holds a single agent, so MA-POCA's counterfactual group-credit
+reduces to a single-agent return — functionally almost identical to PPO. A full **2×2** — {MA-POCA, PPO}
+× {sparse, shaped} — tests two claims against the 3-seed POCA bands (§12):
+
+1. **Equivalence (sparse):** does PPO reach the same emergent pursuit MA-POCA got on the pure terminal
+   reward (POCA_sparse chaser ELO ≈ 1890)? Expected **yes** ⇒ the group machinery adds nothing at
+   group-size-1, so the genuine MA-POCA-vs-PPO comparison belongs in the later team-expansion phase.
+2. **Trap is algorithm-independent (shaped):** does PPO *also* collapse into PBS proximity-farming
+   (Group Reward ≈ −1) like POCA_shaped? Expected **yes** ⇒ the farming pathology (§12) is a property of
+   the reward, not the credit-assignment algorithm.
+
+This is a **sanity/equivalence** arm, so 1 seed per PPO condition (single lines against POCA's bands).
+
+### The `individual_terminal_reward` mechanism (why PPO needs a code change)
+
+PPO ignores group rewards (`AddGroupReward` / `EndGroupEpisode` are MA-POCA-only). Left unchanged, a PPO
+run would train on **only** the −0.001/step term and never see a win/lose signal. Fix (in
+`TagArenaManager`, commit `b281945`): a config-driven env-param `individual_terminal_reward` that, when
+set, **additionally** delivers the terminal outcome through each agent's individual `Agent.AddReward`,
+using the *exact same values* the groups receive — catch: chaser `+1+timeBonus`, runner `−1+survivalBonus`;
+stalemate: runner `+1`, chaser `−1`. Episodes still end through the group as before. **At group-size-1,
+individual == group**, so PPO and MA-POCA see the same signal and the comparison is fair. The flag
+defaults **off**, so the MA-POCA runs are byte-identical (the shaping math is policy-invariant PBS; §9).
+
+> **Thesis note.** This is the standard, documented ML-Agents caveat — *"use MA-POCA (poca), not PPO,
+> when agents are in a group, because PPO does not consume group rewards."* Making that concrete (and
+> instrumenting a fair PPO comparison anyway) is itself a small methodological contribution.
+
+### Smoke validation (pre-run gate — `PPO_smoke_01`, 50k, shaped config, in-Editor)
+
+Before spending 5M compute we verified PPO trains, tolerates the grouped agents, and actually receives
+the new individual terminal signal. All three criteria passed:
+
+| Criterion | Result | Evidence |
+|---|---|---|
+| **Genuinely PPO** (not POCA) | ✅ | scalar tags include `Losses/Policy Loss` + `Losses/Value Loss` but **no `Losses/Baseline Loss`** — the baseline term is MA-POCA-specific, so its *absence* confirms PPO (the mirror image of §2's presence-confirms-POCA logic) |
+| **Tolerates grouped agents** | ✅ | clean run to 50k, checkpoints + final `.onnx` exported, `Self-play/ELO` computed (Chaser 1203.5 vs Runner 1199.0) — no error from agents in a `SimpleMultiAgentGroup` |
+| **Individual terminal reward reaches PPO** | ✅ | see the runner-probe reasoning below |
+
+**Runner reward as a clean probe.** The runner has **no** shaping, so its individual `Cumulative Reward`
+= `+0.001/step` + the individual terminal. At the ~random 50k horizon almost every episode is a stalemate
+the runner "wins", so **without** the flag its reward would sit near **+2.0** (step term only, ~2000
+steps). Observed: **≈ +2.9**. The extra ≈ +1.0 is exactly the `+1` survival terminal being delivered
+individually ⇒ the mirror works under PPO. (The chaser's ≈ +0.70 is consistent: step −2 + strong PBS
+shaping − ~1 terminal for the losing stalemates.) ELO barely diverged at 50k, as expected pre-training.
+
+**Decision: GO — Approach 1 unchanged, no fallback needed.** (The documented fallback was per-agent
+`EndEpisode` if PPO couldn't tolerate the groups; it can, so groups stay.)
+
+### What still gets added here (after the 5M runs)
+
+1. The **2×2 table** — ELO gap, catch rate, episode length, Group Cumulative Reward for all four cells.
+2. **PPO-lines-on-POCA-bands** figures (TensorBoard → Playwright, `docs/figures/ppo/`).
+3. The verdict on the two claims above (equivalence + algorithm-independent trap).
+
+*(Apparatus commits on `feat/ppo-comparison`: `b281945` flag, `bac632b` PPO configs sparse/shaped/smoke,
+`e0b5a2a` `run_ppo.bat`. The 5M runs require rebuilding the headless player so the binary contains the
+flag logic.)*
