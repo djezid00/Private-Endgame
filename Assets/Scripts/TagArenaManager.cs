@@ -142,6 +142,17 @@ public class TagArenaManager : MonoBehaviour
     }
 
     // ─────────────────────────────────────────────
+    // PPO SUPPORT — individual terminal reward toggle
+    // PPO ignores group rewards (AddGroupReward / EndGroupEpisode are POCA-only), so a PPO run would
+    // train with no win/lose signal. When the config sets individual_terminal_reward > 0 we ALSO
+    // deliver the terminal ±1 (plus the same time/survival bonuses) through each agent's individual
+    // AddReward. At group-size-1 this is exactly equivalent to the group reward, so POCA and PPO see
+    // the same signal and the comparison stays fair. Defaults to 0 ⇒ the POCA path is byte-identical.
+    // ─────────────────────────────────────────────
+    private bool IndividualTerminalRewardOn()
+        => Academy.Instance.EnvironmentParameters.GetWithDefault("individual_terminal_reward", 0f) > 0.5f;
+
+    // ─────────────────────────────────────────────
     // STALEMATE — time ran out, nobody won
     // Runner wins a stalemate (survived), chaser loses.
     // ─────────────────────────────────────────────
@@ -154,6 +165,13 @@ public class TagArenaManager : MonoBehaviour
         runnerGroup.AddGroupReward(+1f);
         // Chaser group failed to catch the runner — penalise it
         chaserGroup.AddGroupReward(-1f);
+
+        // PPO also needs the win/lose signal individually (see IndividualTerminalRewardOn).
+        if (IndividualTerminalRewardOn())
+        {
+            runner.AddReward(+1f);
+            chaser.AddReward(-1f);
+        }
 
         // Outcome metric — recorded BEFORE ending the episode (the group-end call synchronously
         // resets the arena; see OnAgentTagged). 0 = no catch this episode (averaged ⇒ catch rate).
@@ -185,23 +203,37 @@ public class TagArenaManager : MonoBehaviour
         float taggerProgress = Mathf.Clamp01((float)tagger.StepCount / taggerMax);
         float taggedProgress = Mathf.Clamp01((float)tagged.StepCount / taggedMax);
 
+        bool mirror = IndividualTerminalRewardOn();
+
         if (tagger.teamId == 0) // ── CHASER caught RUNNER ─────────────────────
         {
             // Chaser group reward: base +1 plus a time bonus up to +0.5
             // (catches faster = bigger bonus → chaser learns urgency)
             float timeBonus = (1f - taggerProgress) * 0.5f;
-            chaserGroup.AddGroupReward(1f + timeBonus);
-
             // Runner group reward: base -1 but survival softens penalty up to +0.5
             // (survived longer = smaller net penalty → runner learns to dodge)
             float survivalBonus = taggedProgress * 0.5f;
+
+            chaserGroup.AddGroupReward(1f + timeBonus);
             runnerGroup.AddGroupReward(-1f + survivalBonus);
+
+            if (mirror)
+            {
+                chaser.AddReward(1f + timeBonus);
+                runner.AddReward(-1f + survivalBonus);
+            }
         }
         else // ── RUNNER somehow triggered the collision (edge case) ──────────
         {
             // A catch is a catch: chaser side wins regardless of which collider fired.
             chaserGroup.AddGroupReward( 1f);
             runnerGroup.AddGroupReward(-1f);
+
+            if (mirror)
+            {
+                chaser.AddReward( 1f);
+                runner.AddReward(-1f);
+            }
         }
 
         // Outcome metrics — recorded BEFORE ending the episode. EndGroupEpisode() synchronously
