@@ -5,6 +5,23 @@ Each entry is one working session. Newest at the top.
 
 ---
 
+## 2026-07-02 — Results committed; PPO comparison designed (2×2), plan next
+
+- **5M results committed + pushed** (`ae77192` on `feat/sparse-vs-shaped-comparison`): 12 brains in
+  `Assets/Models/5M/` + Theory §12. User watched the brains in the Editor (Inference wiring committed
+  `3f16f13`).
+- **New branch `feat/ppo-comparison`** (off the results branch).
+- **Brainstormed the PPO arm** and re-scoped it in light of the 5M reversal: the parent spec's single
+  "PPO shaped" run became a **full 2×2 (algorithm × reward)** — add `PPO_sparse_s1` + `PPO_shaped_s1`
+  (1 seed each, seed 1, 5M) vs the 3-seed POCA bands. Decisions: **Approach 1** guarded
+  `individual_terminal_reward` flag (mirror terminal ±1 via `AddReward`, POCA path byte-identical);
+  **mandatory PPO smoke-test gate** before 5M; separate `TagMApoca_ppo_{sparse,shaped}.yaml` configs.
+  Spec: `docs/superpowers/specs/2026-07-02-ppo-comparison-design.md` (`d178867`).
+- **Next:** writing-plans → implement (flag + configs + `run_ppo.bat`), smoke-test PPO, then the two 5M
+  runs, then 2×2 write-up (Theory §13) + seed-aggregation figures, then finish the branch.
+
+---
+
 ## 2026-06-22 — 5M batch COMPLETE; result inverts vs 400k (shaping farms, sparse wins)
 
 All 6 runs finished a full 5M steps (batch 00:25 21st → 01:36 22nd). All have `Chaser.onnx` +

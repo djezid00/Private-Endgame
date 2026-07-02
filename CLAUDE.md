@@ -157,6 +157,20 @@ Albert also had a couple moments of throwing the cubes at Kai and spinning with 
 >   `Environment/TimeToCatch` via `StatsRecorder`. See `docs/superpowers/specs|plans/2026-06-17-*`.
 > - Workload is **environment/IPC-bound, not compute-bound** → the GPU is irrelevant; scale arenas
 >   (Editor sweet spot ~8–12) or build headless (`--no-graphics`) for the 5M run. See `docs/Theory.md`.
+>
+> **Updated 2026-07-02 (5M rigor runs done; PPO comparison, branch `feat/ppo-comparison`).**
+> - **5M results (Theory.md §12):** the 400k ranking *inverted* at scale. **Sparse** (pure terminal
+>   reward, no shaping) → **decisive emergent chaser pursuit** across all 3 seeds (ELO ≈ 1890 vs ≈ 670,
+>   Group Reward ≈ +1.45). **Shaped** (PBS coef 0.5) → chaser **collapses into proximity-farming** and
+>   loses every seed (Group Reward ≈ −1 while Mean Reward stays high). Lesson: short-horizon validation
+>   can invert; PBS invariance is about the *optimum*, not the learning *trajectory*. Final 12 brains in
+>   `Assets/Models/5M/` (`{arm}_s{n}_{role}.onnx`).
+> - **PPO comparison (2×2 algorithm × reward):** adds `PPO_sparse_s1` + `PPO_shaped_s1` (1 seed each,
+>   seed 1, 5M) vs the 3-seed POCA bands. New env-param **`individual_terminal_reward`** in
+>   `TagArenaManager`: when on, mirrors the terminal ±1 (+bonuses) via each agent's `AddReward` so PPO
+>   (which ignores group rewards) gets a win/lose signal; **defaults off ⇒ POCA path byte-identical**.
+>   PPO configs `TagMApoca_ppo_{sparse,shaped}.yaml`. **Smoke-test PPO before the 5M runs.** Spec:
+>   `docs/superpowers/specs/2026-07-02-ppo-comparison-design.md`.
 
 ### TagAgent.cs — Key Facts
 - Inherits from `Unity.MLAgents.Agent`

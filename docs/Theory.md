@@ -403,3 +403,8 @@ optimum. The sparse chaser has **no such crutch — its only reward is the actua
 2. **Sparse-vs-shaped 5M TensorBoard figures** (Playwright capture) incl. the now-fixed `Environment/TimeToCatch` (`090f4b5`).
 3. A short **qualitative behavior description** from Editor inference (the visual contrast above).
 4. (Optional, §8) the **PPO sanity arm** for the MA-POCA-vs-PPO discussion.
+
+> **Update (2026-07-02):** the PPO arm is being built as a full **2×2 (algorithm × reward)** — two PPO
+> runs (`PPO_sparse_s1`, `PPO_shaped_s1`) against the 3-seed POCA bands — to test (a) PPO ≈ POCA on the
+> sparse arm (emergent pursuit) and (b) the shaping farming-trap is algorithm-independent (PPO farms
+> too). Results will land in **§13**. Design: `docs/superpowers/specs/2026-07-02-ppo-comparison-design.md`.
