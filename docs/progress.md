@@ -5,6 +5,35 @@ Each entry is one working session. Newest at the top.
 
 ---
 
+## 2026-06-22 — 5M batch COMPLETE; result inverts vs 400k (shaping farms, sparse wins)
+
+All 6 runs finished a full 5M steps (batch 00:25 21st → 01:36 22nd). All have `Chaser.onnx` +
+`Runner.onnx`; final brains copied into `Assets/Models/5M/` (12 files, `{arm}_s{n}_{role}.onnx`).
+
+### THE finding — the 400k ranking reversed at 5M
+- **Sparse (no shaping):** chaser **dominates** — s1 Chaser ELO 1890.7 / GroupR **+1.45**; s2 Runner
+  ELO 685 / GroupR −0.87; s3 Runner ELO 661 / GroupR −0.94. Emergent pursuit from pure terminal reward.
+- **Shaped (PBS coef 0.5):** chaser **loses every seed** — s1 GroupR −0.98 (MeanR 5.38), s2 GroupR
+  −1.00 (MeanR 3.93, paired Runner +1.00), s3 GroupR −0.96 (MeanR 4.29). High Mean Reward + ≈−1 Group
+  Reward = **proximity-farming local optimum**: chaser hovers near runner harvesting PBS reward, never
+  commits to catches.
+- **Why it matters (thesis):** (1) short-horizon validation (400k, where shaping looked ~3× better)
+  *inverted* at scale — vindicates the §11 "400k is short" caveat; (2) PBS policy-invariance guarantees
+  the optimum, not that the learner reaches it — the pre-registered γ<1 "standing reward for being
+  close" + weakened invariance under self-play is exactly what manifested; (3) sparse terminal reward is
+  sufficient AND superior here. Full write-up: `docs/Theory.md` §12 (rewritten).
+
+### Next steps (this session's plan)
+1. **USER watches brains** in Editor (Inference Only; pair Chaser+Runner from same run): sparse_s1 →
+   chaser chases & catches; shaped_s1 → chaser hovers/farms. Visual confirmation of the farming story.
+2. **Commit results to a NEW branch** (brains in `Assets/Models/5M/` + doc updates).
+3. **One PPO run** for the MA-POCA-vs-PPO comparison arm (needs PPO config + `individual_terminal_reward`
+   handling since PPO ignores group rewards — verify early).
+4. Seed-aggregation script (mean ± std, error-band figures) + Playwright TB figures into §12; then
+   `finishing-a-development-branch`.
+
+---
+
 ## 2026-06-21 — 5M overnight batch running; sparse arm done = emergent chaser pursuit
 
 The unattended 6-run batch (`experiments/run_overnight_poca.bat`, headless `--no-graphics`, 16 arenas,
