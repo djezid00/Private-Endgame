@@ -12,7 +12,7 @@ gustom nagradom oblikovanom potencijalnom funkcijom (PBS) [8], na kratkom (400 0
 horizontu — gdje gusta nagrada daje približno tri puta veću kompetitivnu razliku — nije pouzdano:
 na dugom horizontu rijetka nagrada dovodi do odlučujuće, dosljedne pobjede Lovca u sva tri testirana
 sjemena, dok gusta nagrada dovodi do dosljednog poraza uzrokovanog lokalnim optimumom
-("farmanjem" blizine bez dovršavanja hvatanja). Time je odgovoreno na istraživačko pitanje rada:
+(iskorištavanjem nagrade za blizinu bez dovršavanja hvatanja). Time je odgovoreno na istraživačko pitanje rada:
 rijetka, terminalna nagrada dovoljna je za pojavu ponašanja potjere pod MA-POCA algoritmom i
 samostalnom igrom, a gusto oblikovanje nagrade u ovom scenariju nije nužno te može biti štetno na
 duljem horizontu treniranja.

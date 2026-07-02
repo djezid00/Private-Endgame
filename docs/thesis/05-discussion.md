@@ -28,16 +28,16 @@ jednog agenta u stacionarnom okruženju.
 Rezultat pri 400 000 koraka (§4.3) sam za sebe upućivao bi na suprotan zaključak: da gusto
 oblikovanje nagrade poboljšava rezultat otprilike tri puta. Taj bi zaključak, izveden isključivo iz
 kratkoročne validacije, bio pogrešan. Ovaj nalaz ima praktičnu implikaciju za validaciju MARL
-sustava: kratkoročni rezultati mogu poslužiti za provjeru ispravnosti implementacije (poglavlje
-2.1 i §4.1), ali ne i za konačno rangiranje dizajnerskih odluka poput oblikovanja nagrade, osim ako
+sustava: kratkoročni rezultati mogu poslužiti za provjeru ispravnosti implementacije (poglavlje 3 i §4.1),
+ali ne i za konačno rangiranje dizajnerskih odluka poput oblikovanja nagrade, osim ako
 se ne potvrde na horizontu bliskom onome koji se stvarno koristi za konačne modele.
 
 ## 5.4 Ograničenja rada
 
 Nekoliko ograničenja treba uzeti u obzir pri tumačenju rezultata. Prvo, rezultati na dugom
 horizontu (§4.4) očitani su iz konzolnih zapisa treniranja po ponašanju; potpuna agregacija
-podataka preko tri sjemena (srednja vrijednost i standardna devijacija za stopu hvatanja i duljinu
-epizode, s pripadajućim grafovima) iz TensorBoard zapisa još je u izradi. Drugo, eksperiment je
+podataka preko tri sjemena (srednja vrijednost i standardna devijacija za stopu hvatanja, duljinu
+epizode i vrijeme do hvatanja, s pripadajućim grafovima) iz TensorBoard zapisa još je u izradi. Drugo, eksperiment je
 proveden isključivo unutar jednog, pojednostavljenog scenarija igre lovice s kinematički
 identičnim agentima; generalizacija zaključka na scenarije s asimetričnom kinematikom ili većim
 brojem agenata po timu nije ispitana. Treće, usporedba s neovisnim PPO učenjem [7] — koja bi izravno
