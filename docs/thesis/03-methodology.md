@@ -94,7 +94,7 @@ Za usporedbu režima korištene su sljedeće metrike, zabilježene tijekom treni
   (`Environment/TimeToCatch`), zabilježeni prilagođenim `StatsRecorder` pozivima. U pokretanjima na
   400 000 koraka `TimeToCatch` je zbog pogreške u redoslijedu bilježenja (vrijednost se bilježila
   nakon poziva koji resetira brojač koraka) sustavno iznosio nula; pogreška je otklonjena prije
-  pokretanja treninga na 5 000 000 koraka. Za rezultate na kratkom horizontu (§4.3) stoga je kao
+  pokretanja treninga na 5 000 000 koraka. Za rezultate na kratkom horizontu (§5.3) stoga je kao
   zamjenska mjera brzine hvatanja korištena prosječna duljina epizode.
 - Prosječna duljina epizode (`Environment/EpisodeLength`) — posredna mjera vještine Lovca, korištena
   i kao zamjena za `TimeToCatch` gdje potonji nije bio dostupan (vidi gore).

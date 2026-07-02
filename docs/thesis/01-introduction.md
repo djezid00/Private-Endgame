@@ -44,10 +44,11 @@ Konkretni ciljevi:
    treniranja, koristeći ELO ocjenu, stopu uspješnog hvatanja, prosječno vrijeme do hvatanja i
    kumulativnu timsku nagradu.
 
-Rad je podijeljen na šest poglavlja. U uvodnom poglavlju opisan je problem dodjele zasluga i oblikovanja
+Rad je podijeljen na sedam poglavlja. U uvodnom poglavlju opisan je problem dodjele zasluga i oblikovanja
 nagrade u MARL sustavima te su definirani ciljevi rada. U drugom poglavlju dan je pregled srodnih radova
 iz područja podržanog učenja, samostalne igre i oblikovanja nagrade. Treće poglavlje opisuje metodologiju:
-implementaciju okruženja, arhitekturu agenata, algoritam MA-POCA i dizajn eksperimenta. Četvrto poglavlje
-prikazuje rezultate provedenih eksperimenata. U petom poglavlju rezultati su raspravljeni u odnosu na
-istraživačko pitanje, uključujući ograničenja rada. Zaključne misli i smjernice za buduća istraživanja
-dane su u šestom, završnom poglavlju.
+dizajn okruženja, arhitekturu agenata, algoritam MA-POCA i dizajn eksperimenta. Četvrto poglavlje opisuje
+implementaciju — programsku arhitekturu, ključne klase, konfiguraciju treniranja i reproducibilnost. Peto
+poglavlje prikazuje rezultate provedenih eksperimenata. U šestom poglavlju rezultati su raspravljeni u
+odnosu na istraživačko pitanje, uključujući ograničenja rada. Zaključne misli i smjernice za buduća
+istraživanja dane su u sedmom, završnom poglavlju.
