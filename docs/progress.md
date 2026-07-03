@@ -5,6 +5,42 @@ Each entry is one working session. Newest at the top.
 
 ---
 
+## 2026-07-03 — PPO 2×2 complete: farming trap is a reward-DELIVERY effect, not algorithm
+
+Both PPO runs finished full 5M (`PPO_sparse_s1`; `PPO_shaped_s1` paused overnight at ~300k, resumed via
+`--resume`). Pulled final metrics from tfevents (dependency-free parser, since default python lacks
+tensorboard) — verified with catch rate + ELO, not just ELO.
+
+### The 2×2 (catch rate = shaping-independent outcome)
+| | sparse | shaped |
+|---|---|---|
+| **POCA** | ~1.00 (chaser crushes) | **~0.01 — FARMING** (0/0/0.016, 399-step stalemates, GroupR −1) |
+| **PPO**  | 0.90 (chaser wins) | **0.98 — chaser WINS** (58-step episodes, fastest catcher of all 4) |
+
+Three cells: chaser dominates. Only **POCA_shaped** farms. **PPO_shaped escaped the trap.**
+
+### Finding (refined)
+- **Sparse equivalence CONFIRMED:** MA-POCA ≈ PPO at 1v1 on pure reward (both catch ~0.9–1.0).
+- **"Trap is algorithm-independent" REFUTED — and productively:** the cause is **where the terminal
+  reward is delivered**, not the algorithm. POCA reads the terminal via the **group** channel
+  (`individual_terminal_reward` off) → chaser's individual stream is step+shaping only → farms. PPO
+  needs it **individually** (ignores group rewards) → +1-per-catch competes with shaping → catches.
+  Invisible in the sparse arm (no shaping); only bites under dense shaping. Full write-up: Theory §13.
+
+### Follow-up designed + configured (isolates the cause within MA-POCA)
+Created `config/poca/TagMApoca_shaped_indivterm.yaml` (+ archived) = POCA shaped **+
+`individual_terminal_reward: 1.0`**. Run-id `POCA_shaped_indivterm_s1`, seed 1. **Prediction:** if
+delivery channel is the cause, this POCA run escapes farming (catch rate ~0 → toward ~0.98). Command:
+```
+mlagents-learn config/poca/TagMApoca_shaped_indivterm.yaml --env="...\Build\TagMApoca_V1.exe" --no-graphics --run-id=POCA_shaped_indivterm_s1 --seed 1
+```
+(uses the SAME rebuilt headless binary — flag code already in it.)
+
+### Still to add
+Figures (TB→Playwright) for the four cells; the follow-up run result; then `finishing-a-development-branch`.
+
+---
+
 ## 2026-07-02 (cont.) — PPO apparatus built + smoke gate PASSED (GO)
 
 Executed the PPO plan via subagent-driven development (branch `feat/ppo-comparison`):

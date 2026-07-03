@@ -468,12 +468,79 @@ shaping − ~1 terminal for the losing stalemates.) ELO barely diverged at 50k, 
 **Decision: GO — Approach 1 unchanged, no fallback needed.** (The documented fallback was per-agent
 `EndEpisode` if PPO couldn't tolerate the groups; it can, so groups stay.)
 
-### What still gets added here (after the 5M runs)
+### Results — the 2×2 at 5M
 
-1. The **2×2 table** — ELO gap, catch rate, episode length, Group Cumulative Reward for all four cells.
-2. **PPO-lines-on-POCA-bands** figures (TensorBoard → Playwright, `docs/figures/ppo/`).
-3. The verdict on the two claims above (equivalence + algorithm-independent trap).
+Both PPO runs completed a full 5M (`PPO_sparse_s1`, `PPO_shaped_s1`; seed 1; the shaped run was paused
+overnight at ~300k and resumed with `--resume`). Final values (shaping-independent metrics in bold —
+catch rate and ELO are the fair cross-algorithm comparisons; **Group Cumulative Reward is not logged for
+PPO** because the PPO trainer does not consume group rewards, so catch rate is the common outcome metric):
 
-*(Apparatus commits on `feat/ppo-comparison`: `b281945` flag, `bac632b` PPO configs sparse/shaped/smoke,
-`e0b5a2a` `run_ppo.bat`. The 5M runs require rebuilding the headless player so the binary contains the
-flag logic.)*
+| Metric (5M final) | POCA **sparse** (3 seeds) | POCA **shaped** (3 seeds) | PPO **sparse** (1 seed) | PPO **shaped** (1 seed) |
+|---|---|---|---|---|
+| **Catch rate** (`Environment/Catch`) | **~1.00** | **~0.01** (0.00 / 0.00 / 0.016) | **0.90** | **0.98** |
+| Episode length (decision steps) | ~40 | **399 ≈ cap** | 126 | 58 |
+| **Chaser ELO** | ~1889 (1891/1873/1903) | ~1259 (1252/1206/1318) | 1727 | 1829 |
+| Runner ELO | ~665 | ~1152 | 716 | 608 |
+| Chaser Group Cum. Reward | +1.45 | **−0.99** | — (PPO ignores) | — (PPO ignores) |
+| Chaser indiv. Cum. Reward | −0.20 (fast catches) | +5.39 (shaping farm) | +0.36 | +1.46 |
+
+Three of the four cells show the chaser **decisively winning** (catch rate 0.90–1.00, ELO gap ~1000–1250,
+short episodes). The single exception is **POCA + shaped: catch rate ≈ 0, 399-step (capped) stalemates,
+Group Reward −1** — the proximity-farming trap of §12. **PPO + shaped does not farm — it is the strongest
+catcher of all (0.98 catch rate, ~58-step episodes).**
+
+### Interpretation — the trap is *not* algorithm-independent; it is a reward-delivery effect
+
+We set out (design spec, claim b) expecting the farming trap to be **algorithm-independent** — that PPO
+would farm too. **It did not.** But the honest cause is **not** "PPO is better than MA-POCA"; it is a
+structural difference in *where the terminal reward is delivered*, which is forced by the trainers:
+
+- **POCA-shaped:** `individual_terminal_reward` is **off** (POCA reads the terminal ±1 through the
+  **group** channel via `AddGroupReward`). The chaser's *individual* reward stream is therefore
+  step-penalty **+ dense PBS shaping only** — so the individual gradient is dominated by "stay close",
+  and it farms. The terminal win/loss reaches the centralized critic, but the dense per-step shaping
+  outweighs the sparse group signal in practice.
+- **PPO-shaped:** PPO ignores group rewards, so we **had** to turn `individual_terminal_reward` **on** —
+  the +1-per-catch now lands **directly in the chaser's individual reward**, where it competes with (and
+  beats) the shaping term. So the chaser commits to catches.
+
+In the **sparse** arm this delivery difference is invisible — with no shaping, the terminal is the only
+signal either way, so both algorithms catch (~0.9–1.0). It only bites **under dense shaping**.
+
+**Refined conclusions (thesis-ready):**
+1. **Equivalence (sparse) — CONFIRMED.** MA-POCA ≈ PPO at 1v1 on the pure terminal reward (both ~1.0 /
+   ~0.9 catch, chaser ELO ~1800–1900). At group-size-1 the MA-POCA machinery adds nothing, as predicted —
+   so the meaningful MA-POCA-vs-PPO comparison belongs in the team-expansion phase.
+2. **"Trap is algorithm-independent" — REFUTED, and productively so.** The farming trap is a consequence
+   of **routing the terminal reward *only* through the group channel while shaping floods the individual
+   channel**, not of the credit-assignment algorithm. This is a sharper, more useful result than the one
+   we expected: it predicts the trap can be *fixed within MA-POCA* by also delivering the terminal reward
+   individually (the flag we built for PPO), which the follow-up run below tests directly.
+
+### Follow-up (designed) — POCA-shaped WITH individual terminal reward
+
+To turn the confound into a clean causal test, run one more MA-POCA shaped arm **identical to
+POCA_shaped except `individual_terminal_reward: 1.0`** (config `TagMApoca_shaped_indivterm.yaml`,
+run-id `POCA_shaped_indivterm_s1`, seed 1). **Prediction:** if delivery channel is the cause, this POCA
+run escapes the farming trap — catch rate jumps from ~0 toward the PPO-shaped ~0.98 and episode length
+collapses from 399 toward ~60. Confirmation would isolate the mechanism (delivery channel, not algorithm)
+and is itself a clean thesis result about reward-shaping design in grouped MA-POCA.
+
+### Caveats (for honest reporting)
+
+- **PPO is 1 seed** per arm vs POCA's 3 — adequate for a sanity/equivalence arm, but the PPO cells have
+  no variance bars; state this. (The effect sizes here are huge — 0.98 vs 0.01 catch rate — so seed noise
+  is not a plausible alternative explanation for the shaped divergence, but more PPO seeds would harden it.)
+- **The group-vs-individual delivery difference is inherent**, not a bug: PPO *cannot* consume group
+  rewards, so a "pure algorithm-only" comparison at 1v1 is not possible without changing the reward path.
+  The follow-up run is what makes the causal claim clean (it varies delivery *within* MA-POCA).
+- **ELO is relative** (divergence from 1200), not externally calibrated; catch rate + episode length are
+  the interpretable, shaping-independent outcome metrics and should lead the write-up.
+
+### Still to add
+- **Figures:** TensorBoard → Playwright captures of catch rate / episode length / ELO for the four cells
+  (`docs/figures/ppo/`).
+- The **follow-up run result** (POCA_shaped_indivterm) once executed.
+
+*(Apparatus commits on `feat/ppo-comparison`: `b281945` flag, `bac632b` PPO configs, `e0b5a2a`
+`run_ppo.bat`. Final brains: `results/PPO_{sparse,shaped}_s1/`.)*
