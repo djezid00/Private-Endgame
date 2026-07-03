@@ -489,6 +489,24 @@ short episodes). The single exception is **POCA + shaped: catch rate ≈ 0, 399-
 Group Reward −1** — the proximity-farming trap of §12. **PPO + shaped does not farm — it is the strongest
 catcher of all (0.98 catch rate, ~58-step episodes).**
 
+### Figures
+
+Colour = reward arm (blue = sparse, orange = shaped); line style = algorithm (solid = MA-POCA 3-seed
+mean with min–max band, dashed = PPO single seed). Okabe–Ito colours (colourblind-safe); end values
+labelled directly. Data pulled from the TensorBoard scalar API and re-plotted.
+
+![Catch rate, 2×2](figures/ppo/tb_2x2_catch.png)
+*Fig. 5 — `Environment/Catch` (per-episode catch rate). Three of four cells climb to ~0.9–1.0; only
+**MA-POCA + shaped** (orange solid) stays pinned at ~1% for the full 5M — the farming trap. Note the
+delivery effect is invisible early and only diverges as shaping takes over: the PPO-shaped chaser (orange
+dashed), which receives the catch reward individually, learns to catch, while the otherwise-identical
+MA-POCA-shaped chaser never does.*
+
+![Chaser ELO, 2×2](figures/ppo/tb_2x2_elo.png)
+*Fig. 6 — `Self-play/ELO` (chaser). Three cells diverge strongly upward (1726–1887); MA-POCA + shaped
+stalls just above the 1200 start (~1258), never establishing skill over the runner — the ELO signature of
+the farming stall. ELO is shaping-independent (match outcomes), so this is not a reward-scale artefact.*
+
 ### Interpretation — the trap is *not* algorithm-independent; it is a reward-delivery effect
 
 We set out (design spec, claim b) expecting the farming trap to be **algorithm-independent** — that PPO
@@ -538,9 +556,8 @@ and is itself a clean thesis result about reward-shaping design in grouped MA-PO
   the interpretable, shaping-independent outcome metrics and should lead the write-up.
 
 ### Still to add
-- **Figures:** TensorBoard → Playwright captures of catch rate / episode length / ELO for the four cells
-  (`docs/figures/ppo/`).
-- The **follow-up run result** (POCA_shaped_indivterm) once executed.
+- The **follow-up run result** (`POCA_shaped_indivterm_s1`) once executed — expected to lift the orange
+  solid line in Fig. 5 off the floor if delivery channel is the cause.
 
 *(Apparatus commits on `feat/ppo-comparison`: `b281945` flag, `bac632b` PPO configs, `e0b5a2a`
 `run_ppo.bat`. Final brains: `results/PPO_{sparse,shaped}_s1/`.)*
