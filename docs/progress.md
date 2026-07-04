@@ -5,6 +5,25 @@ Each entry is one working session. Newest at the top.
 
 ---
 
+## 2026-07-04 — Follow-up done: farming trap has TWO causes (delivery + algorithm)
+
+`POCA_shaped_indivterm_s1` (POCA shaped + `individual_terminal_reward:1.0`, 5M) finished. **Partial
+rescue:** catch rate ~0.01 → **~0.12** (≈10×, still rising to ~0.16 at 5M), chaser ELO 1259→1321, Group
+Reward −0.99→−0.86 — but nowhere near PPO_shaped's 0.98 (episodes still ~393 near cap).
+
+**Refined conclusion (Theory §13):** the shaped farming trap has **two contributing causes** — (1)
+routing the terminal only via the group channel (fixing it helps ~10×, *necessary*) AND (2) an
+algorithm-level susceptibility in MA-POCA's centralized-critic/counterfactual-baseline credit assignment
+to dense shaping (PPO, with the same individual terminal, escaped by ~2M; POCA barely lifts even with the
+terminal in BOTH channels — *not sufficient*). Design takeaway: under dense PBS shaping in grouped
+MA-POCA, deliver the terminal individually too (it helps) but expect slow escape; for this task the
+robust choice is simply the **sparse** reward (§12).
+
+New figure `docs/figures/ppo/tb_probe_delivery.png` (Fig 7): 3 shaped conditions, catch rate 1%→12%→98%.
+§13 now complete (2×2 Figs 5–6 + probe Fig 7). Next: `finishing-a-development-branch`.
+
+---
+
 ## 2026-07-03 — PPO 2×2 complete: farming trap is a reward-DELIVERY effect, not algorithm
 
 Both PPO runs finished full 5M (`PPO_sparse_s1`; `PPO_shaped_s1` paused overnight at ~300k, resumed via

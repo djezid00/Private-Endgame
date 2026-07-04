@@ -529,20 +529,46 @@ signal either way, so both algorithms catch (~0.9–1.0). It only bites **under 
 1. **Equivalence (sparse) — CONFIRMED.** MA-POCA ≈ PPO at 1v1 on the pure terminal reward (both ~1.0 /
    ~0.9 catch, chaser ELO ~1800–1900). At group-size-1 the MA-POCA machinery adds nothing, as predicted —
    so the meaningful MA-POCA-vs-PPO comparison belongs in the team-expansion phase.
-2. **"Trap is algorithm-independent" — REFUTED, and productively so.** The farming trap is a consequence
-   of **routing the terminal reward *only* through the group channel while shaping floods the individual
-   channel**, not of the credit-assignment algorithm. This is a sharper, more useful result than the one
-   we expected: it predicts the trap can be *fixed within MA-POCA* by also delivering the terminal reward
-   individually (the flag we built for PPO), which the follow-up run below tests directly.
+2. **"Trap is algorithm-independent" — REFUTED, and productively so.** Routing the terminal reward
+   *only* through the group channel while shaping floods the individual channel is a large part of what
+   causes the trap. **But the follow-up run below shows this is only *part* of the story:** adding the
+   terminal to MA-POCA's individual channel too helps ~10× yet does **not** fully rescue it — so an
+   algorithm-level susceptibility in MA-POCA's credit assignment also contributes. See "Follow-up result".
 
-### Follow-up (designed) — POCA-shaped WITH individual terminal reward
+### Follow-up result — a *partial* rescue (delivery channel is necessary, not sufficient)
 
-To turn the confound into a clean causal test, run one more MA-POCA shaped arm **identical to
-POCA_shaped except `individual_terminal_reward: 1.0`** (config `TagMApoca_shaped_indivterm.yaml`,
-run-id `POCA_shaped_indivterm_s1`, seed 1). **Prediction:** if delivery channel is the cause, this POCA
-run escapes the farming trap — catch rate jumps from ~0 toward the PPO-shaped ~0.98 and episode length
-collapses from 399 toward ~60. Confirmation would isolate the mechanism (delivery channel, not algorithm)
-and is itself a clean thesis result about reward-shaping design in grouped MA-POCA.
+We ran the clean causal test: MA-POCA shaped **identical to `POCA_shaped` except
+`individual_terminal_reward: 1.0`** (`POCA_shaped_indivterm_s1`, seed 1, 5M) — so the chaser now
+receives the terminal ±1 in **both** the group and the individual channel.
+
+| Shaped condition (5M) | terminal delivery | catch rate | chaser ELO | chaser Group Reward |
+|---|---|---|---|---|
+| `POCA_shaped` (3 seeds) | group only | ~0.01 | ~1259 | −0.99 |
+| `POCA_shaped_indivterm` (1 seed) | group + individual | **~0.12** (rising, ~0.16 by 5M) | 1321 | −0.86 |
+| `PPO_shaped` (1 seed) | individual only | 0.98 | 1829 | — |
+
+![Delivery-channel probe](figures/ppo/tb_probe_delivery.png)
+*Fig. 7 — Catch rate for the three shaped conditions (all coef 0.5), varying only where the terminal
+reward is delivered. Adding the individual terminal to MA-POCA (green) lifts catch rate ~10× off the
+group-only floor (orange, ~1%) and is **still rising at 5M** — but it never approaches PPO's early,
+decisive escape (blue, ~99% by ~2M).*
+
+**Verdict — the trap has two contributing causes, not one:**
+- **Delivery channel is a real, contributing cause (necessary).** Giving MA-POCA the terminal
+  individually raises catch rate from ~0.01 to ~0.12 (≈10×) and improves ELO (1259→1321) and Group
+  Reward (−0.99→−0.86). The green curve is **still climbing at 5M**, so MA-POCA *may* escape eventually —
+  just far slower than PPO.
+- **But it is not sufficient.** With the *same* individual terminal — indeed a *doubled* catch incentive
+  (group **and** individual) — MA-POCA still mostly farms (0.12 vs PPO's 0.98; episodes still ~393, near
+  the 399 cap). So there is also an **algorithm-level susceptibility**: MA-POCA's centralized-critic +
+  counterfactual-baseline credit assignment is markedly more prone to the dense-shaping farming optimum,
+  and much slower to escape it, than PPO's simpler individual-advantage estimation.
+
+**Design guideline (thesis takeaway).** Under dense potential-based shaping in grouped MA-POCA, deliver
+the sparse terminal reward on the individual channel too — it demonstrably helps — but expect the
+centralized critic to still need many more steps (or gentler shaping) to fully overcome farming. The
+robust choice for *this* task is simply the **sparse** terminal reward (no shaping), which is both
+sufficient and the strongest performer for MA-POCA (§12).
 
 ### Caveats (for honest reporting)
 
@@ -555,9 +581,11 @@ and is itself a clean thesis result about reward-shaping design in grouped MA-PO
 - **ELO is relative** (divergence from 1200), not externally calibrated; catch rate + episode length are
   the interpretable, shaping-independent outcome metrics and should lead the write-up.
 
-### Still to add
-- The **follow-up run result** (`POCA_shaped_indivterm_s1`) once executed — expected to lift the orange
-  solid line in Fig. 5 off the floor if delivery channel is the cause.
+### Status
+§13 is complete for the thesis: the 2×2 (Figs 5–6), the delivery-channel probe (Fig 7), and the
+refined two-cause conclusion. Optional hardening (not required for the claims): raise PPO from 1→3 seeds
+for variance bars, and extend/re-seed `POCA_shaped_indivterm` to see whether the still-rising green curve
+eventually converges.
 
 *(Apparatus commits on `feat/ppo-comparison`: `b281945` flag, `bac632b` PPO configs, `e0b5a2a`
 `run_ppo.bat`. Final brains: `results/PPO_{sparse,shaped}_s1/`.)*
