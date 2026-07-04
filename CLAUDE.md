@@ -171,6 +171,20 @@ Albert also had a couple moments of throwing the cubes at Kai and spinning with 
 >   (which ignores group rewards) gets a win/lose signal; **defaults off ⇒ POCA path byte-identical**.
 >   PPO configs `TagMApoca_ppo_{sparse,shaped}.yaml`. **Smoke-test PPO before the 5M runs.** Spec:
 >   `docs/superpowers/specs/2026-07-02-ppo-comparison-design.md`.
+>
+> **Updated 2026-07-04 (PPO 2×2 + follow-up DONE; Theory.md §13, branch `feat/ppo-comparison`).**
+> - **2×2 result (catch rate):** POCA_sparse ~1.00, PPO_sparse 0.90, PPO_shaped **0.98** — but
+>   POCA_shaped **~0.01 (farming)**. Only MA-POCA+shaped falls into the trap; PPO+shaped escapes.
+>   → **Sparse equivalence CONFIRMED** (MA-POCA ≈ PPO at 1v1); the shaped farming trap is **not**
+>   algorithm-independent.
+> - **Follow-up `POCA_shaped_indivterm_s1`** (POCA shaped + `individual_terminal_reward:1.0`) = **partial
+>   rescue**: catch ~0.01→~0.12 (≈10×, still rising) but ≪ PPO 0.98. → **Trap has TWO causes:** (1)
+>   terminal delivered only via the group channel (necessary), (2) MA-POCA centralized-critic credit
+>   assignment is more prone to dense-shaping farming (not sufficient). **Design takeaway: for this task
+>   use the sparse reward.** Figures `docs/figures/ppo/{tb_2x2_catch,tb_2x2_elo,tb_probe_delivery}.png`.
+> - Trained brains: `results/PPO_{sparse,shaped}_s1/`, `results/POCA_shaped_indivterm_s1/`. All work
+>   committed+pushed on `feat/ppo-comparison`. **Remaining: `finishing-a-development-branch`** (do NOT
+>   merge to main without the user's explicit approval).
 
 ### TagAgent.cs — Key Facts
 - Inherits from `Unity.MLAgents.Agent`
