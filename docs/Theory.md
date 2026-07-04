@@ -439,13 +439,28 @@ run would train on **only** the −0.001/step term and never see a win/lose sign
 `TagArenaManager`, commit `b281945`): a config-driven env-param `individual_terminal_reward` that, when
 set, **additionally** delivers the terminal outcome through each agent's individual `Agent.AddReward`,
 using the *exact same values* the groups receive — catch: chaser `+1+timeBonus`, runner `−1+survivalBonus`;
-stalemate: runner `+1`, chaser `−1`. Episodes still end through the group as before. **At group-size-1,
-individual == group**, so PPO and MA-POCA see the same signal and the comparison is fair. The flag
-defaults **off**, so the MA-POCA runs are byte-identical (the shaping math is policy-invariant PBS; §9).
+stalemate: runner `+1`, chaser `−1`. Episodes still end through the group as before. This gives the PPO
+chaser a win/lose signal of the **same magnitude** MA-POCA gets, so PPO is not handicapped by a missing
+terminal — that is the sense in which the comparison is fair. The flag defaults **off**, so the MA-POCA
+runs are byte-identical (the shaping math is policy-invariant PBS; §9).
 
-> **Thesis note.** This is the standard, documented ML-Agents caveat — *"use MA-POCA (poca), not PPO,
-> when agents are in a group, because PPO does not consume group rewards."* Making that concrete (and
-> instrumenting a fair PPO comparison anyway) is itself a small methodological contribution.
+> **Thesis note (verified against the local ML-Agents docs, not asserted from memory).** The caveat that
+> motivates this flag is documented: *"Environments which use Multi Agent Groups can be trained using PPO
+> or SAC, but agents will not be able to learn from group rewards…"* and *"Multi Agent Groups should be
+> used with the MA-POCA trainer"* (`docs/Learning-Environment-Design-Agents.md:1151, :1088`); the toolkit
+> also emits this at runtime — we saw it in our own PPO logs — from
+> `mlagents/trainers/trainer/rl_trainer.py:273` (*"An agent received a Group Reward, but you are not using
+> a multi-agent trainer. Please use the POCA trainer for best results."*).
+>
+> **Important correction (same docs).** The docs *also* state that group and individual rewards are
+> **not** interchangeable: *"Group rewards … are treated differently than individual agent rewards during
+> training. So calling `AddGroupReward()` is not equivalent to calling `agent.AddReward()` on each agent
+> in the group"* (`:1142`). So even at group-size-1 the two channels are **equal in magnitude but not in
+> how the trainer processes them** — an earlier draft's claim that they are "equivalent / provably fair"
+> was an overclaim. This distinction is not a footnote here: it is precisely the mechanism behind the
+> two-cause result in §"Follow-up result" (MA-POCA given the terminal in *both* channels still farms).
+> The docs also explicitly permit our approach: *"You can still add incremental rewards to agents using
+> `Agent.AddReward()` if they are in a Group"* (`:1147`).
 
 ### Smoke validation (pre-run gate — `PPO_smoke_01`, 50k, shaped config, in-Editor)
 
@@ -527,8 +542,11 @@ signal either way, so both algorithms catch (~0.9–1.0). It only bites **under 
 
 **Refined conclusions (thesis-ready):**
 1. **Equivalence (sparse) — CONFIRMED.** MA-POCA ≈ PPO at 1v1 on the pure terminal reward (both ~1.0 /
-   ~0.9 catch, chaser ELO ~1800–1900). At group-size-1 the MA-POCA machinery adds nothing, as predicted —
-   so the meaningful MA-POCA-vs-PPO comparison belongs in the team-expansion phase.
+   ~0.9 catch, chaser ELO ~1800–1900). On the *sparse* arm the MA-POCA group machinery makes no
+   detectable difference — consistent with the expectation that at group-size-1 the counterfactual
+   baseline has little to do — so the meaningful MA-POCA-vs-PPO comparison belongs in the team-expansion
+   phase. (Note the shaped arm shows this "no difference" does **not** generalise: once dense shaping is
+   present, group-vs-individual reward handling matters a great deal — conclusion 2.)
 2. **"Trap is algorithm-independent" — REFUTED, and productively so.** Routing the terminal reward
    *only* through the group channel while shaping floods the individual channel is a large part of what
    causes the trap. **But the follow-up run below shows this is only *part* of the story:** adding the
