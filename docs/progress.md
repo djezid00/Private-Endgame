@@ -5,6 +5,22 @@ Each entry is one working session. Newest at the top.
 
 ---
 
+## 2026-07-06 — Obstacles × gamma sweep: spec + plan + Sprint 1 apparatus done
+
+New branch `feat/obstacles-gamma-sweep` (off `feat/ppo-comparison`). Brainstormed + spec'd the
+next phase (spec `2026-07-04-obstacles-gamma-sweep-design.md`, plan same date): **5-point gamma
+sweep** (0.8–0.995, sparse, 4-pillar arenas fixed→random, 3 seeds at endpoints) + **2 shaped
+low-γ probes** of the farming trap. Key pre-registered prediction (Theory §14): the PBS standing
+term scales with (1−γ), so **lower γ should farm WORSE** — either outcome is citable.
+
+Sprint 1 done (subagent-driven): `shaping_gamma` env-param in `TagAgent` (fallback = inspector ⇒
+old configs byte-identical, one-time param log for smoke checks), config generator → 14 YAMLs
+(2 probes, 10 sweep, 2 smoke gates; UTF-8 fix after review), `run_gamma_probes.bat`, Theory §14
+expectations pre-registered. **Next:** USER rebuilds headless binary → `TagMApoca_gprobe_smoke`
+gate → launch probes overnight; Sprint 2 (obstacle system) builds while they run.
+
+---
+
 ## 2026-07-04 — Follow-up done: farming trap has TWO causes (delivery + algorithm)
 
 `POCA_shaped_indivterm_s1` (POCA shaped + `individual_terminal_reward:1.0`, 5M) finished. **Partial

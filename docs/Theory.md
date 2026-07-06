@@ -607,3 +607,48 @@ eventually converges.
 
 *(Apparatus commits on `feat/ppo-comparison`: `b281945` flag, `bac632b` PPO configs, `e0b5a2a`
 `run_ppo.bat`. Final brains: `results/PPO_{sparse,shaped}_s1/`.)*
+
+---
+
+## 14. Obstacles × gamma sweep — pre-registered expectations (written BEFORE the runs)
+
+**New standing rule from this phase on:** every results section opens with a *pre-registered
+expectations* subsection committed before the runs launch; findings are then reported against
+these predictions. (Design: `docs/superpowers/specs/2026-07-04-obstacles-gamma-sweep-design.md`;
+matrix: 2 shaped low-γ probes + {fixed, random} 4-pillar arenas × γ ∈ {0.8, 0.9, 0.95, 0.99,
+0.995}, sparse, 3 seeds at the endpoints, 5M steps/behavior.)
+
+### Expectations — RQ-B (shaped probes, no obstacles, γ = 0.8 / 0.9)
+
+For a stationary agent the per-step PBS reward is `F = γΦ − Φ = (1−γ)·coef·(d/maxDist) ≥ 0` —
+the invariance-violating "standing" term scales with **(1−γ)**. At γ=0.8 it is **20×** the
+γ=0.99 case, and the future terminal +1 is simultaneously discounted harder. Both effects point
+the same way.
+
+> **Prediction:** farming *worsens* at lower γ — catch rate ≤ the ~0.01 γ=0.99 baseline, Group
+> Reward pinned ≈ −1. A material catch-rate **rise** at low γ falsifies the mechanism story.
+> Secondary signature to watch: the standing term grows with *distance*, so the γ=0.8 chaser may
+> drift to keep distance rather than hover close (this derivation refines §11's "standing reward
+> for being close" phrasing — reconcile explicitly when writing up).
+
+### Expectations — RQ-A (sparse gamma sweep, obstacle arenas)
+
+γ sets the effective planning horizon (~1/(1−γ) decisions): γ=0.8 ≈ 5 decisions (~25 physics
+steps), γ=0.99 ≈ 100, γ=0.995 ≈ 200 (half the episode cap).
+
+> **Prediction:** catch rate and ELO gap **rise with γ up to ~0.99, then plateau or dip slightly
+> at 0.995** (saturating / inverted-U curve): γ=0.8 is too myopic to plan interception around
+> cover; 0.995 adds credit-assignment noise with little extra planning benefit. Falsified if the
+> curve is flat (γ irrelevant here) or monotonic in the opposite direction.
+
+### Expectations — RQ-C (obstacles)
+
+> **Prediction:** with 4 fixed pillars the sparse γ=0.99 chaser still clearly beats the runner
+> but below the open-arena ceiling (catch rate ≫ the ~0.1 random baseline, < the ~1.0 open-arena
+> result); randomized layouts learn slower and end lower than fixed at matched γ. Qualitative:
+> runner uses pillars to break line of sight; chaser learns cut-off routes (fixed) vs general
+> navigation (random).
+
+*Results land here after each batch: probe figure (catch rate for shaped γ ∈ {0.8, 0.9, 0.99}),
+sensitivity curves (catch rate & ELO gap vs γ, per obstacle phase, error bars at the 3-seed
+endpoints), fixed-vs-random contrast, qualitative behavior notes.*
