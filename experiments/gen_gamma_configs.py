@@ -106,6 +106,6 @@ FILES["TagMApoca_obs_smoke.yaml"] = config(
 for target in (MLAGENTS_CFG, ARCHIVE):
     os.makedirs(target, exist_ok=True)
     for name, text in FILES.items():
-        with open(os.path.join(target, name), "w", newline="\n") as f:
+        with open(os.path.join(target, name), "w", newline="\n", encoding="utf-8") as f:
             f.write(text)
     print(f"wrote {len(FILES)} configs -> {target}")

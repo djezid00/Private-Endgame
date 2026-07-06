@@ -1,4 +1,4 @@
-# GAMMA SWEEP (RQ-A/RQ-C) — MA-POCA sparse, 4 FIXED pillars, gamma 0.995.
+# GAMMA SWEEP (RQ-A/RQ-C) â€” MA-POCA sparse, 4 FIXED pillars, gamma 0.995.
 # Identical to TagMApoca_sparse_5M.yaml except gamma + obstacle env-params.
 # Spec: docs/superpowers/specs/2026-07-04-obstacles-gamma-sweep-design.md
 behaviors:

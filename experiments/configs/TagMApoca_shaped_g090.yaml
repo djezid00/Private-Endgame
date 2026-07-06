@@ -1,4 +1,4 @@
-# GAMMA PROBE (RQ-B) — MA-POCA shaped (PBS coef 0.5), NO obstacles, gamma 0.9.
+# GAMMA PROBE (RQ-B) â€” MA-POCA shaped (PBS coef 0.5), NO obstacles, gamma 0.9.
 # Identical to TagMApoca_shaped_5M.yaml except gamma + shaping_gamma.
 # Spec: docs/superpowers/specs/2026-07-04-obstacles-gamma-sweep-design.md
 behaviors:

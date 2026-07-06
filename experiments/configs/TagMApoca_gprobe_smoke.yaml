@@ -1,4 +1,4 @@
-# SMOKE GATE for the gamma probes: 50k, shaped, gamma 0.8 — verifies the binary
+# SMOKE GATE for the gamma probes: 50k, shaped, gamma 0.8 â€” verifies the binary
 # reads shaping_gamma (check the [TagAgent] log line in the run log).
 behaviors:
   Chaser:
