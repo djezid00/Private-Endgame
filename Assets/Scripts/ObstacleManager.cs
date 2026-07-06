@@ -24,7 +24,7 @@ public class ObstacleManager : MonoBehaviour
     public float minSeparation  = 4f;
     public float agentClearance = 1.5f; // used by TagArenaManager spawn rejection
 
-    private readonly System.Random rng = new System.Random();
+    private System.Random rng;  // seeded per-instance in Awake — 16 arenas must not share a layout stream
     private readonly List<Vector2> positions = new List<Vector2>(); // active obstacle XZ
     private Vector3[]    authoredLocalPos;
     private Quaternion[] authoredLocalRot;
@@ -33,6 +33,11 @@ public class ObstacleManager : MonoBehaviour
 
     private void Awake()
     {
+        // Environment.TickCount has ~15ms resolution: all 16 arena managers construct in the
+        // same scene-load tick, so a default seed would give every arena the SAME layout
+        // sequence forever. Mix in the unique instance id for per-arena streams.
+        rng = new System.Random(unchecked(System.Environment.TickCount * 397 ^ GetInstanceID()));
+
         if (pillars == null || pillars.Length == 0)
         {
             pillars = new Transform[transform.childCount];
@@ -78,6 +83,9 @@ public class ObstacleManager : MonoBehaviour
                                                        positions[i].y);
                 pillars[i].localRotation = Quaternion.Euler(0f, (float)(rng.NextDouble() * 360.0), 0f);
             }
+            // autoSyncTransforms is off in this project: without an explicit sync, the first
+            // observation of the new episode would raycast against LAST episode's pillar positions.
+            Physics.SyncTransforms();
         }
         else
         {
