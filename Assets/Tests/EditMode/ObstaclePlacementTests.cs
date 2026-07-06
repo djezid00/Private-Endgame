@@ -65,6 +65,17 @@ public class ObstaclePlacementTests
         bool ok = ObstaclePlacement.TryPlaceObstacles(4, HalfSize, WallClear, 100f,
                                                       new System.Random(1), result);
         Assert.IsFalse(ok);
+        Assert.AreEqual(0, result.Count, "failed placement must leave result empty");
+    }
+
+    [Test]
+    public void TryPlaceObstacles_ZeroCount_SucceedsEmpty()
+    {
+        var result = new List<Vector2> { new Vector2(1f, 1f) }; // stale content must be cleared
+        bool ok = ObstaclePlacement.TryPlaceObstacles(0, HalfSize, WallClear, MinSep,
+                                                      new System.Random(1), result);
+        Assert.IsTrue(ok);
+        Assert.AreEqual(0, result.Count);
     }
 
     [Test]

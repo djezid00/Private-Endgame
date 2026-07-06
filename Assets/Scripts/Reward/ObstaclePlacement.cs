@@ -29,9 +29,9 @@ public static class ObstaclePlacement
     }
 
     /// <summary>
-    /// Rejection-samples `count` positions satisfying bounds + separation. Returns false
-    /// (partial result cleared by caller policy) if any obstacle exceeds its attempt budget —
-    /// the caller falls back to the authored fixed layout rather than break training.
+    /// Rejection-samples 'count' positions satisfying bounds + separation. Returns false with
+    /// 'result' left EMPTY if any obstacle exceeds its attempt budget — so callers can fall back
+    /// to the authored fixed layout without clearing anything themselves.
     /// </summary>
     public static bool TryPlaceObstacles(int count, float arenaHalfSize, float wallClearance,
                                          float minSeparation, System.Random rng,
@@ -53,7 +53,7 @@ public static class ObstaclePlacement
                     placed = true;
                 }
             }
-            if (!placed) return false;
+            if (!placed) { result.Clear(); return false; }
         }
         return true;
     }
