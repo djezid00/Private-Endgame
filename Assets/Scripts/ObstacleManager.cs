@@ -83,9 +83,6 @@ public class ObstacleManager : MonoBehaviour
                                                        positions[i].y);
                 pillars[i].localRotation = Quaternion.Euler(0f, (float)(rng.NextDouble() * 360.0), 0f);
             }
-            // autoSyncTransforms is off in this project: without an explicit sync, the first
-            // observation of the new episode would raycast against LAST episode's pillar positions.
-            Physics.SyncTransforms();
         }
         else
         {
@@ -98,6 +95,11 @@ public class ObstacleManager : MonoBehaviour
                 positions.Add(new Vector2(authoredLocalPos[i].x, authoredLocalPos[i].z));
             }
         }
+
+        // autoSyncTransforms is off in this project: without an explicit sync, the first
+        // observation of the new episode would raycast against stale pillar positions.
+        // Sits after BOTH branches so the rare random-failure fallback is covered too.
+        Physics.SyncTransforms();
     }
 
     /// <summary>Spawn-safety query for TagArenaManager (arena-local position).</summary>
