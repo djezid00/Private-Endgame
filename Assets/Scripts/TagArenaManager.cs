@@ -10,6 +10,9 @@ public class TagArenaManager : MonoBehaviour
     public TagAgent chaser;   // drag ChaserAgent here in Inspector
     public TagAgent runner;   // drag RunnerAgent here in Inspector
 
+    [Header("Obstacles (optional — leave empty for the legacy open arena)")]
+    public ObstacleManager obstacles;   // drag the TagArena prefab's Obstacles object here
+
     [Header("Arena Settings")]
     public float arenaRadius = 8f;    // half-size of the square arena
     public float spawnY      = 0.5f;  // Y height agents are placed at on reset.
@@ -81,33 +84,21 @@ public class TagArenaManager : MonoBehaviour
         episodeEnded = false;
         stepCount    = 0;
 
-        // --- Place chaser on the LEFT half of the arena ---
-        // Random.Range ensures it never spawns exactly on the centre line.
-        Vector3 chaserPos = new Vector3(
-            Random.Range(-arenaRadius + 1f, -1f),
-            spawnY,
-            Random.Range(-arenaRadius + 1f,  arenaRadius - 1f)
-        );
+        // Obstacles FIRST, agents second — agent spawn rejection needs the new positions.
+        if (obstacles != null) obstacles.ResetObstacles();
 
-        // --- Place runner on the RIGHT half of the arena ---
-        // Separated side prevents instant-collision on spawn.
-        Vector3 runnerPos = new Vector3(
-            Random.Range(1f, arenaRadius - 1f),
-            spawnY,
-            Random.Range(-arenaRadius + 1f, arenaRadius - 1f)
-        );
+        // --- Place chaser on the LEFT half, runner on the RIGHT half ---
+        // Separated sides prevent instant-collision on spawn; SampleSpawn keeps
+        // both out of the obstacle clearance zone.
+        Vector3 chaserPos = SampleSpawn(-arenaRadius + 1f, -1f);
+        Vector3 runnerPos = SampleSpawn(1f, arenaRadius - 1f);
 
         // --- Safety loop: retry runner position if too close to chaser ---
-        // This prevents the collision-on-spawn infinite loop.
         int attempts = 0;
         while (Vector3.Distance(chaserPos, runnerPos) < minSpawnDistance
                && attempts < spawnRetryLimit)
         {
-            runnerPos = new Vector3(
-                Random.Range(1f, arenaRadius - 1f),
-                spawnY,
-                Random.Range(-arenaRadius + 1f, arenaRadius - 1f)
-            );
+            runnerPos = SampleSpawn(1f, arenaRadius - 1f);
             attempts++;
         }
 
@@ -124,6 +115,24 @@ public class TagArenaManager : MonoBehaviour
         chaserRb.angularVelocity = Vector3.zero;
         runnerRb.linearVelocity  = Vector3.zero;
         runnerRb.angularVelocity = Vector3.zero;
+    }
+
+    // Samples a spawn in [xMin,xMax] x [-arenaRadius+1, arenaRadius-1], re-rolling while the
+    // candidate sits inside an active obstacle's clearance. Bounded retries; after the budget
+    // it returns the last candidate rather than loop forever (an occasional pillar-adjacent
+    // spawn is harmless — physics pushes the box out).
+    private Vector3 SampleSpawn(float xMin, float xMax)
+    {
+        Vector3 pos = Vector3.zero;
+        for (int i = 0; i < spawnRetryLimit; i++)
+        {
+            pos = new Vector3(
+                Random.Range(xMin, xMax),
+                spawnY,
+                Random.Range(-arenaRadius + 1f, arenaRadius - 1f));
+            if (obstacles == null || obstacles.IsClearOfActiveObstacles(pos)) return pos;
+        }
+        return pos;
     }
 
     // ─────────────────────────────────────────────
