@@ -20,11 +20,14 @@ public class TagAgent : Agent
 
     [Header("Reward Shaping (chaser only)")]
     public float arenaDiagonal = 28.28f; // max chaser↔runner planar distance (20x20 floor), normalises Φ
-    public float shapingGamma  = 0.99f;  // MUST match trainer extrinsic.gamma
+    public float shapingGamma  = 0.99f;  // fallback only — overridden per episode by env-param "shaping_gamma"
 
     // Set once per episode from environment_parameters (0 in the sparse arm).
     private float distanceShapingCoef = 0f;
     private float prevPotential       = 0f;
+
+    // One-time log so smoke runs can verify which shaping params the binary received.
+    private static bool shapingParamsLogged = false;
 
     // ─────────────────────────────────────────────
     // PRIVATE STATE
@@ -59,6 +62,18 @@ public class TagAgent : Agent
             // (environment_parameters.distance_shaping_coef). 0 ⇒ sparse arm.
             distanceShapingCoef = Academy.Instance.EnvironmentParameters
                 .GetWithDefault("distance_shaping_coef", 0f);
+
+            // PBS gamma MUST track the trainer's extrinsic.gamma (gamma-sweep experiment).
+            // Falls back to the inspector value ⇒ configs without the param are unchanged.
+            shapingGamma = Academy.Instance.EnvironmentParameters
+                .GetWithDefault("shaping_gamma", shapingGamma);
+
+            if (!shapingParamsLogged)
+            {
+                Debug.Log($"[TagAgent] distance_shaping_coef={distanceShapingCoef:F2}, " +
+                          $"shaping_gamma={shapingGamma:F3}");
+                shapingParamsLogged = true;
+            }
 
             // Seed Φ from the freshly-reset spawn so the first PBS delta is well-defined.
             prevPotential = CurrentPotential();
