@@ -652,3 +652,49 @@ steps), γ=0.99 ≈ 100, γ=0.995 ≈ 200 (half the episode cap).
 *Results land here after each batch: probe figure (catch rate for shaped γ ∈ {0.8, 0.9, 0.99}),
 sensitivity curves (catch rate & ELO gap vs γ, per obstacle phase, error bars at the 3-seed
 endpoints), fixed-vs-random contrast, qualitative behavior notes.*
+
+### Probe results — RQ-B (run 2026-07-07, 5M each): prediction CONFIRMED, quantitatively
+
+Both probes (`POCA_shaped_g080_s1`, `POCA_shaped_g090_s1`) completed 5M steps/behavior. Final
+values (mean of last 5 TensorBoard points; baseline column = the 3-seed `POCA_shaped` γ=0.99 arm
+of §12):
+
+| Shaped condition (5M) | γ = 0.8 (1 seed) | γ = 0.9 (1 seed) | γ = 0.99 (3 seeds, §12) |
+|---|---|---|---|
+| Catch rate (`Environment/Catch`) | **0.010** | **0.014** | ~0.01 |
+| Chaser Group Cum. Reward | −0.99 | −0.99 | −0.99 |
+| Episode length (decision steps) | 398.6 ≈ cap | 398.3 ≈ cap | ~399 ≈ cap |
+| Chaser indiv. Cum. Reward | **+122.8** | **+50.8** | ~+4.5 (5.38/3.93/4.29) |
+| Chaser ELO / Runner ELO | 1237 / 1156 | 1262 / 1116 | ~1259 / ~1152 |
+
+1. **No rescue at low γ (primary prediction confirmed).** Catch rate stays pinned at the ~1 %
+   floor and Group Reward at ≈ −1 in all three shaped conditions — a shorter horizon does not
+   free MA-POCA from the farming optimum. The falsification condition (a material catch-rate
+   rise) did not occur.
+2. **The (1−γ) scaling of the standing term is reproduced almost exactly.** Correcting the
+   chaser's individual reward for the constant −2 step penalty, the per-episode shaping harvest
+   is 6.5 / 52.8 / 124.8 for γ = 0.99 / 0.9 / 0.8 — a ratio of **1 : 8.1 : 19.2** against the
+   pre-registered **1 : 10 : 20** prediction from `F_standing = (1−γ)·coef·(d/maxDist)`. This is
+   the quantitative fingerprint of the mechanism: the harvested reward is the γ-dependent
+   invariance-violating term, not the telescoping PBS component (bounded by ±0.5).
+3. **The distance-keeping signature is present — the chaser farms from afar.** Inverting the
+   harvest formula gives an implied mean chaser–runner distance of ~0.5–0.65 of the arena
+   diagonal (≈ 15–18 u) in *all three* conditions. The shaped chaser is not "hovering near the
+   runner" (§11's original phrasing) — it loiters at mid-to-far range, exactly where the
+   standing term (which *grows* with distance) pays most. §11's "standing reward for being
+   close" is hereby formally corrected: the sign analysis in the §14 expectations (and these
+   data) show the standing term rewards *keeping distance*; what §11/§12 called
+   proximity-farming is better described as **shaping-farming**, with the proximity impression
+   coming from the telescoping approach component early in training.
+4. **Self-play stall unchanged:** ELO gaps (+81 / +146) remain in the same stalled band as the
+   γ=0.99 baseline (+107) — no competitive separation in any shaped condition.
+
+**Caveats:** 1 seed per probe (the baseline has 3); the ~1 % catch floor means "worsens" vs
+"stays at floor" cannot be distinguished — the operative confirmed claim is *no rescue*; the
+implied-distance figures derive from the reward accounting (per-FixedUpdate shaping, 2000
+physics steps/episode at the cap), not from a logged distance metric.
+
+**Thesis takeaway (extends §13's two-cause result):** the farming trap is robust across the
+discount sweep — γ is *not* a lever that rescues dense PBS shaping under grouped MA-POCA, and
+the reward the trapped agent accumulates scales as (1−γ), making low-γ shaped configurations
+*more* pathological in reward magnitude while equally broken in outcome.

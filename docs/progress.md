@@ -5,6 +5,30 @@ Each entry is one working session. Newest at the top.
 
 ---
 
+## 2026-07-07 — Sprint 2 code done; gamma probes DONE: no rescue, (1−γ) scaling confirmed
+
+**Probes finished (5M each).** `POCA_shaped_g{080,090}_s1` vs the γ=0.99 3-seed baseline: catch
+rate pinned ~0.01 in ALL three shaped conditions (Group Reward ≈ −1, episodes at cap) — **low γ
+does not rescue the farming trap** (§14 primary prediction confirmed, falsification condition
+absent). Quantitative fingerprint: step-penalty-corrected shaping harvest 6.5 / 52.8 / 124.8 ≈
+**1 : 8 : 19** vs pre-registered 1 : 10 : 20 from the (1−γ) standing term; implied mean
+chaser–runner distance ~0.5–0.65 of the diagonal ⇒ the chaser **farms from afar** (§11's
+"reward for being close" formally corrected in §14). Full write-up: Theory §14 probe results.
+
+**Sprint 2 (subagent-driven, all reviewed 2-stage):** `ObstaclePlacement` pure math + 8 EditMode
+tests (`8ed2857`+`ad7be39` — review hardened the failure contract: clears result on failure);
+`ObstacleManager` (`89f05b3`+`1553514`+`1addd84` — review caught 2 real batch-killers: RNG seed
+correlation across 16 arenas + stale raycasts from `autoSyncTransforms=0`, both fixed);
+`TagArenaManager` obstacle-aware spawns (`a58ae02` — RNG-stream-identical for num_obstacles=0,
+protects all baselines); Phase A/B batch scripts (`043cfb6`). Scene note: `Scene_V2` holds **16**
+arena instances (docs previously said 8).
+
+**Next:** USER authors 4 pillars in `TagArena.prefab` (guide provided) → Claude reviews prefab →
+EditMode 13/13 → rebuild headless binary #2 → `TagMApoca_obs_smoke` gate (random mode) → launch
+Phase A (9 runs, ~36–42 h) → decision gate → Phase B.
+
+---
+
 ## 2026-07-06 — Obstacles × gamma sweep: spec + plan + Sprint 1 apparatus done
 
 New branch `feat/obstacles-gamma-sweep` (off `feat/ppo-comparison`). Brainstormed + spec'd the
