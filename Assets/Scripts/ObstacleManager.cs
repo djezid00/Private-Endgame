@@ -30,13 +30,15 @@ public class ObstacleManager : MonoBehaviour
     private Quaternion[] authoredLocalRot;
 
     private static bool paramsLogged = false;
+    private static int  instanceCounter = 0; // per-instance RNG stream id (see Awake)
 
     private void Awake()
     {
         // Environment.TickCount has ~15ms resolution: all 16 arena managers construct in the
         // same scene-load tick, so a default seed would give every arena the SAME layout
-        // sequence forever. Mix in the unique instance id for per-arena streams.
-        rng = new System.Random(unchecked(System.Environment.TickCount * 397 ^ GetInstanceID()));
+        // sequence forever. Mix in a unique per-instance counter for per-arena streams.
+        // (A counter instead of GetInstanceID(): that API is deprecated in Unity 6, CS0618.)
+        rng = new System.Random(unchecked(System.Environment.TickCount * 397 ^ instanceCounter++));
 
         if (pillars == null || pillars.Length == 0)
         {
