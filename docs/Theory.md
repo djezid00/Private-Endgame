@@ -178,9 +178,12 @@ lever 2 (chaser speed advantage) is held in reserve as a documented fallback rat
   arm = chaser collapses into PBS **proximity-farming** and loses every seed (Group Reward ≈ −1, high
   Mean Reward). Key finding: short-horizon validation inverted at scale; PBS invariance ≠ trajectory.
   Full mean ± std aggregation + figures still pending.
-- ▶ **Next:** seed-aggregation figures; PPO sanity arm; then finish the branch.
-- Optional but high-value for the thesis: a **PPO (independent-learner) vs MA-POCA** comparison —
-  this is what *justifies the choice* of MA-POCA rather than assuming it.
+- ✅ **PPO 2×2 + delivery probe done (§13):** sparse equivalence confirmed; farming trap = delivery
+  channel (necessary) + algorithm susceptibility (not sufficient).
+- ✅ **Gamma probes done (§14):** low γ does not rescue the trap; (1−γ) harvest scaling confirmed.
+- ✅ **Gamma sweep Phase A done (§14):** rise-to-0.99 confirmed; γ=0.995 bimodal instability;
+  4 fixed pillars cost almost nothing at γ ≥ 0.95.
+- ▶ **Next:** Phase B (randomized layouts); then future work (§15) and finishing the branch.
 
 ---
 
@@ -239,8 +242,9 @@ Combined with the §5 finding that the workload is **environment/IPC-bound, not 
   Run-time at 16 (in-Editor): a 5M-per-behavior run ≈ ~5 h; headless ≈ ~2.5–3 h.
 - **Cross-arena spacing constraint:** arenas must sit **≥35 u apart** (centres). The raycast sensor
   length is 10 u and each arena is 20×20 (half-width 10 u), so centres closer than ~30 u let an agent's
-  rays or physics collider reach a neighbour arena → phantom observations or false catches. The 8 copies
-  are laid out on the X axis at ≥35 u spacing, all at z = 0.
+  rays or physics collider reach a neighbour arena → phantom observations or false catches. The copies
+  (8 at the time of the validation runs; **16 in `Scene_V2` since the bake-off**) are laid out on the
+  X axis at ≥35 u spacing, all at z = 0.
 - **Biggest lever for the multi-day 5M run is *not* more in-Editor arenas — it is not rendering.**
   Building a **headless standalone and training against it with `--no-graphics`** removes per-frame
   render cost and enables true multi-process parallelism (`--num-envs`) across the CPU cores. This is
@@ -313,7 +317,10 @@ linearly; `Epsilon` decays; `Beta` constant — i.e. the optimizer schedules beh
 - **γ < 1 weakens strict PBS invariance.** With `F = γΦ′−Φ` and a persistently negative Φ, the discount
   introduces a small standing per-step reward for *being* close (not only for closing). The effect is
   minor at γ = 0.99, but it means "policy-invariant" holds approximately, not exactly — worth stating in
-  the thesis rather than overclaiming.
+  the thesis rather than overclaiming. *(Sign correction, added 2026-07-10: the §14 derivation and probe
+  data show this standing term `(1−γ)·coef·(d/maxDist)` in fact **grows with distance** — it rewards
+  loitering far, not "being close". The trap diagnosis in §12 stands; the mechanism wording is refined
+  in §14.)*
 - **`Environment/TimeToCatch` logged all-zeros in these 400k runs** — a stat bug: it was recorded
   *after* `EndGroupEpisode()`, which synchronously runs the chaser's `OnEpisodeBegin → ResetArena` and
   zeroes `stepCount`. **Fixed 2026-06-20** (commit `090f4b5`: stats now recorded before the group-end
@@ -369,9 +376,12 @@ files — pending. But the headline below is **unambiguous and consistent across
 ### Interpretation — a reward-shaping local optimum (the key thesis finding)
 
 The shaped chaser's **Mean Reward is high (3.9–5.4) while its Group Reward is ≈ −1** — the smoking gun.
-The chaser is **maximizing the dense potential-based proximity reward by hovering near the runner
-without ever committing to a catch**, and over 5M steps of self-play it never escapes that local
-optimum. The sparse chaser has **no such crutch — its only reward is the actual catch (±1)** — so it is
+The chaser is **maximizing the dense shaping reward without ever committing to a catch**, and over 5M
+steps of self-play it never escapes that local optimum. *(Wording updated 2026-07-10: originally
+"hovering near the runner" — the §14 probe accounting shows the harvested term grows with distance and
+the shaped chaser's implied mean distance is ~0.5–0.65 of the arena diagonal, i.e. it farms from
+mid-to-far range. "Shaping-farming" is the accurate name; the visual "hovering" impression came from
+the early telescoping approach component.)* The sparse chaser has **no such crutch — its only reward is the actual catch (±1)** — so it is
 *forced* to learn genuine interception, and does (ELO ≈ 1890, fast catches).
 
 > **Why this is the most interesting result in the thesis, not a failure:**
@@ -380,8 +390,8 @@ optimum. The sparse chaser has **no such crutch — its only reward is the actua
 >    vindicated — the *opposite* conclusion would have been drawn from the validation run alone.
 > 2. **PBS policy-invariance is about the *optimum*, not the *trajectory*.** Ng et al. (1999) guarantees
 >    the optimal policy is unchanged; it does **not** guarantee a learner *reaches* it. The exact
->    failure mode we pre-registered in §11 — the γ<1 "standing reward for being close" plus the weakened
->    invariance under non-stationary self-play — is what manifested. This is a citable, reproduced
+>    failure mode we pre-registered in §11 — the γ<1 standing reward (sign refined in §14: it grows
+>    with distance) plus the weakened invariance under non-stationary self-play — is what manifested. This is a citable, reproduced
 >    cautionary result, not an implementation bug.
 > 3. **The sparse terminal reward is sufficient *and* superior at scale** for this task — emergence
 >    happens without shaping, answering the research question's core directly.
@@ -698,3 +708,169 @@ physics steps/episode at the cap), not from a logged distance metric.
 discount sweep — γ is *not* a lever that rescues dense PBS shaping under grouped MA-POCA, and
 the reward the trapped agent accumulates scales as (1−γ), making low-γ shaped configurations
 *more* pathological in reward magnitude while equally broken in outcome.
+
+![Gamma probes vs baseline, TensorBoard](figures/gamma/tb_probe_gamma.png)
+*Fig. 8 — TensorBoard capture of the three shaped conditions (probes γ=0.8/0.9 + the γ=0.99
+3-seed baseline): `Environment/Catch` bounces along the ~1 % floor for all conditions and all
+5M steps, while `Environment/Cumulative Reward` shows the (1−γ) harvest ladder in a single
+chart — the γ=0.8 chaser at ≈ +120, γ=0.9 at ≈ +48, γ=0.99 near +5. `Group Cumulative Reward`
+stays pinned at chaser −1 / runner +1 throughout.*
+
+### Phase A results — sparse gamma sweep, 4 FIXED pillars (run 2026-07-08/09, 9 × 5M)
+
+All 9 runs completed 5M steps/behavior (one run, `g090_s1`, was cleanly paused at ~1.9M via
+Ctrl+C and resumed with `--resume` — the documented pause/resume pattern). **Validity check:**
+every run's player log contains `[ObstacleManager] num_obstacles=4, layout=fixed` and the
+correct per-run `shaping_gamma` — the pillars were active and the config reached the binary in
+all 9 runs. Values below are means of the last 5 TensorBoard points (last ~250k steps).
+
+| γ (seed) | Catch rate | Chaser ELO | Runner ELO | ELO gap | Ep. length | TimeToCatch (phys. steps) | Chaser GroupR |
+|---|---|---|---|---|---|---|---|
+| **0.8** (s1) | 0.92 | 1688 | 738 | 950 | 157 | 293 | +1.01 |
+| **0.8** (s2) | 0.93 | 1729 | 729 | 1001 | 161 | 318 | +1.07 |
+| **0.8** (s3) | 0.74 | 1657 | 770 | 886 | 259 | 407 | +0.39 |
+| **0.9** (s1) | 0.96 | 1780 | 750 | 1030 | 101 | 187 | +1.22 |
+| **0.95** (s1) | 1.00 | 1875 | 664 | 1211 | 53 | 135 | +1.43 |
+| **0.99** (s1) | 0.99 | 1909 | 660 | 1249 | 50 | 118 | +1.42 |
+| **0.995** (s1) | 0.89 | 1448 | 1053 | **395** | 217 | 448 | +1.07 |
+| **0.995** (s2) | 1.00 | 1933 | 681 | 1253 | 45 | 114 | +1.44 |
+| **0.995** (s3) | 1.00 | 1946 | 689 | 1257 | 43 | 105 | +1.43 |
+
+![Catch-rate training curves per gamma](figures/gamma/sweepA_catch_curves.png)
+*Fig. 9 — Catch-rate training curves (rolling mean; bands = min–max over 3 seeds). γ=0.99
+learns fastest (catch ≈ 1.0 by ~1.3M); γ=0.95 next; γ=0.9 and 0.8 slower and lower. The huge
+γ=0.995 band is one seed (`s1`) pinned near **zero** catch from ~1M to ~4.5M before a late
+recovery — see finding 3.*
+
+![Final-value sensitivity vs gamma](figures/gamma/sweepA_sensitivity.png)
+*Fig. 10 — Final catch rate and ELO gap vs γ (per-seed points, line = mean). The curve rises
+to ~0.99 and then splits at 0.995: two seeds at the sweep's best values, one far below.*
+
+![Self-play ELO, all 9 runs](figures/gamma/tb_sweepA_elo.png)
+*Fig. 11 — `Self-play/ELO` (TensorBoard): chasers fan out to 1650–1950, runners sink to
+650–800 — except `g0995_s1`, flat at ~1200 until ~4.3M before a late climb (chaser) and the
+only runner that holds above 1000.*
+
+*(Raw-dashboard overview incl. the `Lesson Number` config-verification flatlines:
+`figures/gamma/tb_sweepA_overview.png`.)*
+
+### Findings vs the pre-registered RQ-A / RQ-C expectations
+
+1. **"Catch rate and ELO gap rise with γ up to ~0.99" — CONFIRMED.** Seed-mean catch:
+   0.86 → 0.96 → 1.00 → 0.99; ELO gap: 946 → 1030 → 1211 → 1249; episode length: 192 → 101 →
+   53 → 50 for γ = 0.8 → 0.9 → 0.95 → 0.99. Monotone in every metric.
+2. **"γ=0.8 too myopic to plan interception around cover" — confirmed in degree, refuted in
+   outcome.** All three γ=0.8 seeds are the slowest learners and finish clearly degraded
+   (catch 0.74–0.93, time-to-catch 2.5–4× the γ=0.99 value), but **every one still decisively
+   beats the runner**. A ~5-decision (~25 physics-step) horizon suffices for reactive pursuit;
+   what it visibly costs is *efficiency* (long chases, more timeouts — s3's GroupR +0.39 means
+   a substantial stalemate share). Myopia degrades pursuit; it does not prevent emergence.
+3. **"Plateau or dip slightly at 0.995" — confirmed, but the mechanism is instability, not
+   uniform decline.** The seed-mean dips (catch 0.96, gap 968), yet the three seeds are
+   *bimodal*: s2/s3 are the **best runs of the entire sweep** (catch ≈ 1.00, gap ≈ 1255,
+   fastest catches at 105–114 physics steps) while s1 spent ~3.5M steps at ≈ 0 catch —
+   self-play stuck in a runner-favourable regime — before a late partial recovery (0.89 catch,
+   gap 395, the only runner ELO above 1000). At a 200-decision effective horizon the variance
+   of the credit signal grows, and the arms race can stall for millions of steps; when it
+   escapes, the long horizon then supports the strongest play observed. **Long-horizon
+   MA-POCA is high-risk / high-reward.**
+4. **The empirical answer to "why is gamma always 0.99?"** In this task, γ=0.99 sits at the
+   sweet spot the sweep reveals: *fastest* learning (Fig 9), final performance at the plateau
+   ceiling, and none of the instability seen at 0.995 — while everything below 0.95 pays a
+   visible myopia tax. The library default is empirically well-chosen for this class of task
+   (single-seed caveat at the interior points).
+5. **RQ-C (fixed cover), first half — obstacles cost far less than expected.** The prediction
+   said "clearly beats the runner but *below the open-arena ceiling*". In fact, at γ ≥ 0.95 the
+   fixed-pillar catch rate reaches the same ≈ 1.0 as the open-arena §12 runs; the measurable
+   cost of cover is only in *time* (episode length ~44–53 vs ~40 decision steps; the §12 sparse
+   chaser's terminal-with-time-bonus GroupR +1.42–1.44 here vs +1.45 open-arena). Four
+   symmetric pillars of cover do **not** shift the 1v1 equilibrium toward the runner at this
+   kinematic parity — an interesting negative result for the "cover helps the evader" intuition
+   (qualitative cover-use review from Editor inference still pending; layout randomization is
+   Phase B's question).
+
+### Caveats (for honest reporting)
+
+- 1 seed at γ ∈ {0.9, 0.95, 0.99}: the interior of the curve has no variance bars; the
+  endpoint bands (3 seeds) are the guard against over-reading it.
+- The γ=0.995 bimodality is n=3: "instability risk rises with horizon" is the claim the data
+  supports; a rate estimate would need more seeds.
+- `Environment/Episode Length` (decision steps, averaged over ALL episodes incl. stalemates)
+  and `Environment/TimeToCatch` (physics steps, averaged over CATCH episodes only) measure
+  different populations and are not interconvertible by the ×5 decision period alone.
+- ELO is self-play-relative (divergence from 1200), not calibrated across runs; catch rate and
+  episode length carry the cross-run comparisons.
+- All Phase A runs share the *same* fixed layout — layout-specific strategies (e.g. memorized
+  patrol routes) cannot be excluded until Phase B's per-episode randomization.
+
+### Decision gate → Phase B
+
+Pre-registered gate criteria: **a resolvable trend across γ** — met (myopia tax at the low end
+with 3-seed agreement; instability at the high end; interior monotone). **Fallback check** (γ=0.99
+chaser still at random baseline ⇒ rerun with 2 pillars) — not triggered (0.99 catch). **GO for
+Phase B** (same 9-run matrix, `obstacle_layout: 1`), which asks: does per-episode layout
+randomization finally give the runner leverage (generalization cost), and does the γ-curve keep
+its shape when memorizing a fixed layout is impossible?
+
+---
+
+## 15. Future work & project verdict (written 2026-07-10, after Phase A)
+
+### Research follow-ups (ordered by thesis value)
+
+1. **Phase B — randomized layouts (imminent, apparatus ready):** the direct test of layout
+   generalization; also the first run where the (now `--seed`-covered) per-episode layout stream
+   is exercised at scale.
+2. **Team expansion (2v1 / 2v2):** the phase where MA-POCA's counterfactual group credit does
+   real work (group size > 1) — the *genuine* MA-POCA-vs-PPO comparison deferred since §13. All
+   plumbing (groups, `RegisterAgent`, config blocks) was built for this from the start.
+3. **Obstacle-density sweep:** the `num_obstacles` knob already supports it — author more
+   pillars and sweep {2, 4, 6, 8}. *Trap recorded in the final code review:* partial counts
+   activate pillars in child order, which breaks mirror symmetry (e.g. `2` = both pillars on one
+   side); re-author or index-shuffle before running a count sweep.
+4. **Shaping-coefficient threshold:** the trap is established at coef 0.5; does a gentler
+   0.05–0.1 shaping avoid it? Would complete the practical guidance ("how much shaping is safe").
+5. **Seed-hardening:** +2 seeds at γ ∈ {0.9, 0.95, 0.99} and for the probes; a rate estimate for
+   the γ=0.995 stall (needs ~6+ seeds).
+6. **Qualitative behavior taxonomy:** Editor-inference review of the Phase A/B brains (cover
+   use, interception routes, patrol patterns) — the thesis's demo material.
+
+### Engineering nice-to-haves (from the final whole-branch code review, 2026-07-10)
+
+Box-aware spawn clearance (current circular check is coincidentally-safe for 2×2 pillars +
+1×1 agents); a symmetry guard or shuffle for partial `num_obstacles`; a one-time warning when
+`SampleSpawn` exhausts its retry budget; a shared one-time-param-log helper (pattern now
+duplicated in `TagAgent` + `ObstacleManager`); a Phase B resume batch mirroring
+`run_obs_phaseA_resume.bat` when needed; keep `experiments/analysis/{parse_tb,plot_gamma}.py`
+(committed 2026-07-10) as the canonical dependency-free analysis path.
+
+### Verdict
+
+The project set out to reproduce a YouTube video's emergent tag behaviour; it became a
+systematically-gated experimental programme: **20 five-million-step training runs** across five
+pre-registered experiments (sparse-vs-shaped ×3 seeds; PPO 2×2; reward-delivery probe; gamma
+probes; gamma sweep Phase A), each behind mechanical smoke gates, with per-task two-stage code
+review and, from §14 on, pre-registered expectations.
+
+The empirical arc is coherent and, at each step, the *interesting* result was the unplanned one:
+
+1. **Emergence needs no shaping** — the sparse terminal reward alone produces decisive pursuit
+   (§12), and short-horizon validation would have concluded the opposite (§11 vs §12).
+2. **Dense PBS shaping is a trap for grouped MA-POCA** — with two separable causes (delivery
+   channel + algorithm susceptibility, §13), a mechanism whose (1−γ) fingerprint the gamma
+   probes then confirmed quantitatively (§14) — including a sign correction to our own earlier
+   explanation, caught by the pre-registration discipline.
+3. **The γ=0.99 default is empirically defensible** — below it a myopia tax, above it an
+   instability risk, and *at* it the fastest learning (§14) — an actual answer to the thesis
+   question "why is gamma always 0.99?".
+4. **Cover is cheaper than intuition says** — four symmetric pillars leave the 1v1 equilibrium
+   untouched at optimal γ (§14), a publishable negative result pending Phase B.
+
+Honest weaknesses: single seeds on the sweep interior; ELO is self-play-relative; everything so
+far is 1v1, so MA-POCA's distinctive machinery (group credit) has not yet been stressed —
+that is exactly what the team-expansion phase is for; and env-side layout randomness became
+seed-reproducible only as of Phase B (`ca64ed0`).
+
+**Overall: the thesis has moved from "does it work?" to "here is a reproducible, pre-registered
+characterization of when and why it works" — which is a stronger contribution than the original
+goal.**

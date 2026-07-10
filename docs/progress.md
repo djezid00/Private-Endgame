@@ -5,6 +5,30 @@ Each entry is one working session. Newest at the top.
 
 ---
 
+## 2026-07-10 — Phase A COMPLETE + analyzed: γ=0.99 vindicated; 0.995 bimodal; pillars cost ~nothing
+
+All 9 fixed-pillar runs finished 5M (incl. the paused-and-resumed `g090_s1`). **Validity:** every
+player log shows `num_obstacles=4, layout=fixed` + correct gamma. Results (Theory §14, Figs 8–11,
+`docs/figures/gamma/`, data via new `experiments/analysis/{parse_tb,plot_gamma}.py`):
+
+- **Rise-to-0.99 CONFIRMED** (catch 0.86→0.96→1.00→0.99; ELO gap 946→1249; monotone).
+- **γ=0.8 myopia tax:** slowest learning, catch 0.74–0.93, TimeToCatch 2.5–4× — but ALL seeds
+  still beat the runner (outcome part of the prediction refuted: myopia degrades, doesn't prevent).
+- **γ=0.995 BIMODAL:** s2/s3 = best of the whole sweep (catch ≈1.0, gap ≈1255); s1 stuck at ~0
+  catch for ~3.5M steps, late partial recovery (gap 395) → long horizon = high-risk/high-reward.
+- **Fixed cover costs ~nothing at γ≥0.95** (catch ≈ open-arena ~1.0; only ~25 % longer episodes) —
+  negative result for "cover helps the evader"; Phase B (randomization) is the real test.
+- **Empirical answer to "why γ=0.99":** fastest learner, plateau performance, no instability.
+
+Also: gamma-probe figure added (Fig 8, the (1−γ) harvest ladder); Theory contradiction pass
+(fixed §10 stale arena count; §11/§12 "reward for being close" formally sign-corrected → §14);
+§8 status refreshed; **§15 added** (future work + project verdict). **Final whole-branch code
+review:** no critical issues; important catch = random layouts weren't `--seed`-covered → **fixed
+(`ca64ed0`, seeded from UnityEngine.Random)** ⇒ **rebuild + obs smoke REQUIRED before Phase B.**
+Decision gate: criteria met, fallback not triggered → **GO for Phase B** after the rebuild gate.
+
+---
+
 ## 2026-07-07 — Sprint 2 code done; gamma probes DONE: no rescue, (1−γ) scaling confirmed
 
 **Probes finished (5M each).** `POCA_shaped_g{080,090}_s1` vs the γ=0.99 3-seed baseline: catch
