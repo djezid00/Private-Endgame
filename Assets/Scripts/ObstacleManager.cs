@@ -34,11 +34,13 @@ public class ObstacleManager : MonoBehaviour
 
     private void Awake()
     {
-        // Environment.TickCount has ~15ms resolution: all 16 arena managers construct in the
-        // same scene-load tick, so a default seed would give every arena the SAME layout
-        // sequence forever. Mix in a unique per-instance counter for per-arena streams.
-        // (A counter instead of GetInstanceID(): that API is deprecated in Unity 6, CS0618.)
-        rng = new System.Random(unchecked(System.Environment.TickCount * 397 ^ instanceCounter++));
+        // Seed the layout stream FROM UnityEngine.Random, which ML-Agents seeds from the
+        // trainer's --seed: random layouts are then reproducible per seed. Awake runs in
+        // deterministic scene order, so each of the 16 arenas draws a distinct but
+        // seed-stable value; the counter keeps streams distinct even if that ever changes.
+        // (Was Environment.TickCount — wall-clock, NOT --seed-covered; fixed for Phase B.)
+        rng = new System.Random(unchecked(
+            UnityEngine.Random.Range(int.MinValue, int.MaxValue) ^ (instanceCounter++ * 997)));
 
         if (pillars == null || pillars.Length == 0)
         {
