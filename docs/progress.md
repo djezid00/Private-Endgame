@@ -45,6 +45,12 @@ run and tag and fails loudly rather than shipping an empty axis.
 **Next session:** execute the plan subagent-driven (the user's choice). Nothing is implemented yet;
 no file under `experiments/analysis/` or `docs/slike/` has been created.
 
+**Correction to the entry below:** Phase B is **deferred, not dropped**. The order the user set is
+finish the theory and write-up for Phase A and everything preceding it, *then* run Phase B. The
+rebuild + `TagMApoca_obs_smoke` gate remains the first action when experiments resume.
+`EVALUACIJA_diplomskog_rada.md` N1/N2 ("Faza B otpada / se ne piše") records this wrongly and needs
+fixing; `VODIC` A4 — describe Phase B in the conditional as not-yet-executed — is still correct.
+
 ---
 
 ## 2026-08-09 — Thesis completion guide consolidated (branch `docs/thesis-completion-guide`)

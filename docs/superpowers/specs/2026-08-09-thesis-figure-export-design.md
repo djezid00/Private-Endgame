@@ -26,7 +26,9 @@ Covers three experimental phases:
 | §14 | γ sweep Phase A + shaped γ probes | `POCA_sparse_obsF_g{080,090,095,099,0995}_s*`, `POCA_shaped_g{080,090}_s1` |
 
 **Out of scope:** the 400k validation figures (§11, `docs/figures/validation/`) — they stay as they
-are; Phase B — not run, and dropped from the thesis per `EVALUACIJA_diplomskog_rada.md` (N2); the
+are; Phase B — **deferred, not cancelled**: it runs after the Phase A theory and write-up are
+finished, so its figures join this pipeline in a later pass (note that
+`EVALUACIJA_diplomskog_rada.md` N1/N2 wrongly record it as dropped); the
 13 hand-drawn diagrams and screenshots the evaluation doc lists for chapters 3–5.
 
 ## Placement, not numbering
