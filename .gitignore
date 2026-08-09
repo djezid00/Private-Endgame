@@ -73,3 +73,7 @@ UpgradeLog*.htm
 
 # Playwright MCP scratch output (snapshots, console logs)
 .playwright-mcp/
+
+# Thesis binary Office docs (edited manually by the user; not versioned as blobs)
+docs/*.docx
+docs/*.doc
