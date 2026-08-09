@@ -29,69 +29,72 @@ Covers three experimental phases:
 are; Phase B — not run, and dropped from the thesis per `EVALUACIJA_diplomskog_rada.md` (N2); the
 13 hand-drawn diagrams and screenshots the evaluation doc lists for chapters 3–5.
 
-## Numbering
+## Placement, not numbering
 
-Figures are numbered to match the chapter-6 outline in `VODIC_ZA_DOVRSETAK_RADA.md`, which counts
-11 numbered figures in the chapter. Under FESB, figures run sequentially within a chapter
-regardless of subsection, so the three figures produced elsewhere take the first slots:
+Figure numbers are assigned by the author in Word, not by this pipeline. Filenames are therefore
+**descriptive and stable** — they never need renaming when chapter 6 is reordered.
 
-| Slot | Figure | Owner |
+What this work owes the author instead is **placement**: for every figure, which section it belongs
+in and which sentence it illustrates. `INDEX.md` carries that as its primary column, sourced from
+the chapter-6 outline in `VODIC_ZA_DOVRSETAK_RADA.md`:
+
+| File | Belongs in | Illustrates |
 |---|---|---|
-| 6.1 | `Losses/Baseline Loss` beside `Losses/Value Loss` (§6.1) | not this work |
-| 6.2 | 400k validation, ELO divergence (§6.2) — `figures/validation/tb_elo.png` | not this work |
-| 6.3 | 400k validation, catch rate + episode length — `tb_catch_episodelen.png` | not this work |
-| 6.4 – 6.11 | 5M main figure, PPO, γ | **this work** |
+| `sparse_vs_shaped_5M` | §6.3 Glavni rezultati | the untitled image currently sitting under the heading |
+| `ppo_stopa_hvatanja`, `ppo_elo` | new §6.5 (PPO 2×2) | the missing results for the §5.4 experiment design |
+| `sonda_isporuke` | new §6.5 | the delivery-channel conclusion in §6.4.2 |
+| `gama_sonde_zetva` | new §6.6 (γ probes) | resolves the dangling `[pogl. X.Y]` references A10/A11 |
+| `gama_krivulje_ucenja`, `gama_osjetljivost`, `gama_elo_9_pokreta` | new §6.6 (γ sweep) | the γ discussion in §6.4.3 / §5.6, which currently has no data |
 
-> **Accepted risk:** the numbers are baked into filenames. If chapter 6 is restructured again — for
-> example if the optional `tb_overview.png` / `tb_policy.png` are also inserted at §6.2 — every
-> file from that point on must be renamed and its caption re-edited by hand. This was chosen over
-> an index-driven scheme for simplicity of insertion.
+For reference only, non-binding: under the current outline these would fall at `Slika 6.4.`–`6.11.`,
+since §6.1 takes the BaselineLoss plate and §6.2 the two 400k validation figures.
 
-FESB requires `Slika 6.4.` (dot separators, caption **below** the image, centred). Filenames use a
-dash — `Slika_6-4_…` — because a trailing dot in a filename is fragile on Windows. The caption text
-in `INDEX.md` uses the correct dotted form.
-
-The thesis currently writes `Slika 2-1` with a dash throughout and needs a global Find & Replace to
-dots (`USKLADENOST_s_uputama_FESB.md` §4.2). That fix is *not* part of this work.
+FESB style points that do apply: captions go **below** the image, centred, with dot separators
+(`Slika 6.4.`). The thesis currently writes `Slika 2-1` with a dash throughout and needs a global
+Find & Replace (`USKLADENOST_s_uputama_FESB.md` §4.2) — that fix is *not* part of this work.
 
 ## Deliverables
 
 ```
 docs/slike/
-├── INDEX.md                    # number → Croatian caption → source runs → producing script
+├── INDEX.md                    # placement → Croatian caption → source runs → producing script
 ├── poglavlje6/                 # PNG 300 DPI + SVG per figure
-│   ├── Slika_6-4_sparse_vs_shaped_5M.{png,svg}
-│   ├── Slika_6-5_ppo_stopa_hvatanja.{png,svg}
-│   ├── Slika_6-6_ppo_elo.{png,svg}
-│   ├── Slika_6-7_sonda_isporuke.{png,svg}
-│   ├── Slika_6-8_gama_sonde_zetva.{png,svg}
-│   ├── Slika_6-9_gama_krivulje_ucenja.{png,svg}
-│   ├── Slika_6-10_gama_osjetljivost.{png,svg}
-│   └── Slika_6-11_gama_elo_9_pokreta.{png,svg}
+│   ├── sparse_vs_shaped_5M.{png,svg}
+│   ├── ppo_stopa_hvatanja.{png,svg}
+│   ├── ppo_elo.{png,svg}
+│   ├── sonda_isporuke.{png,svg}
+│   ├── gama_sonde_zetva.{png,svg}
+│   ├── gama_krivulje_ucenja.{png,svg}
+│   ├── gama_osjetljivost.{png,svg}
+│   └── gama_elo_9_pokreta.{png,svg}
 └── prilog_tensorboard/         # PNG only
-    └── Slika_P-1_… … Slika_P-n_…
+    ├── tb_5M_sparse_vs_shaped.png
+    ├── tb_ppo_2x2.png
+    ├── tb_gama_sweep.png
+    └── tb_baseline_vs_value_loss.png
 ```
 
 ### Figure content
 
-| № | Content | Scalar tags |
+| File | Content | Scalar tags |
 |---|---|---|
-| 6.4 | **Main figure.** Three stacked panels — `Self-play/ELO`, group reward, individual reward — sparse vs shaped, 3 seeds, min–max band. The individual-reward panel is the visual proof of farming: it stays high while group reward sits at −1. | `Self-play/ELO`, `Environment/Group Cumulative Reward`, `Environment/Cumulative Reward` |
-| 6.5 | Catch rate for all four 2×2 cells; only POCA+shaped stays at ~0.01 | `Environment/Catch` |
-| 6.6 | Chaser ELO, 2×2 | `Self-play/ELO` |
-| 6.7 | Delivery-channel probe, three curves: group-only ~0.01 / group+individual ~0.12 / individual-only 0.98 | `Environment/Catch` |
-| 6.8 | γ probes: catch below 1 % for every γ, with the harvest ladder (+122.8 / +50.8 / +4.5) on the same figure | `Environment/Catch`, `Environment/Cumulative Reward` |
-| 6.9 | Learning curves per γ with min–max band — the γ=0.995 bimodality is visible *only* graphically | `Environment/Catch` |
-| 6.10 | Sensitivity: final catch rate and ELO gap vs γ, per-seed points | `Environment/Catch`, `Self-play/ELO` |
-| 6.11 | `Self-play/ELO` for all 9 sweep runs; `g0995_s1` is flat to ~4.3M | `Self-play/ELO` |
+| `sparse_vs_shaped_5M` | **Main figure.** Three stacked panels — `Self-play/ELO`, group reward, individual reward — sparse vs shaped, 3 seeds, min–max band. The individual-reward panel is the visual proof of farming: it stays high while group reward sits at −1. | `Self-play/ELO`, `Environment/Group Cumulative Reward`, `Environment/Cumulative Reward` |
+| `ppo_stopa_hvatanja` | Catch rate for all four 2×2 cells; only POCA+shaped stays at ~0.01 | `Environment/Catch` |
+| `ppo_elo` | Chaser ELO, 2×2 | `Self-play/ELO` |
+| `sonda_isporuke` | Delivery-channel probe, three curves: group-only ~0.01 / group+individual ~0.12 / individual-only 0.98 | `Environment/Catch` |
+| `gama_sonde_zetva` | γ probes: catch below 1 % for every γ, with the harvest ladder (+122.8 / +50.8 / +4.5) on the same figure | `Environment/Catch`, `Environment/Cumulative Reward` |
+| `gama_krivulje_ucenja` | Learning curves per γ with min–max band — the γ=0.995 bimodality is visible *only* graphically | `Environment/Catch` |
+| `gama_osjetljivost` | Sensitivity: final catch rate and ELO gap vs γ, per-seed points | `Environment/Catch`, `Self-play/ELO` |
+| `gama_elo_9_pokreta` | `Self-play/ELO` for all 9 sweep runs; `g0995_s1` is flat to ~4.3M | `Self-play/ELO` |
 
-6.9 and 6.10 are re-emissions of existing `plot_gamma.py` output at the new size and naming. The
-other six are new plotting code — notably 6.5–6.7, which exist today only as hand-taken
-TensorBoard screenshots with no generating script.
+`gama_krivulje_ucenja` and `gama_osjetljivost` are re-emissions of existing `plot_gamma.py` output
+at the new size and naming. The other six are new plotting code — notably the three PPO figures,
+which exist today only as hand-taken TensorBoard screenshots with no generating script.
 
 ### Rendering parameters
 
-- Width 6.3 in ≈ 16 cm, matching the A4 text column under FESB margins; 6.4 is taller (3 panels).
+- Width 6.3 in ≈ 16 cm, matching the A4 text column under FESB margins; the main 5M figure is
+  taller (3 stacked panels).
 - PNG at 300 DPI for insertion; SVG of the same figure for lossless rescaling.
 - Colour-blind-safe palette already used in `plot_gamma.py` (Okabe–Ito), reused unchanged so the
   new figures match the two existing ones.
@@ -105,9 +108,9 @@ experiments/analysis/
 ├── parse_tb.py              unchanged — dependency-free tfevents parser
 ├── tb_style.py              NEW — palette, style_ax, rolling, seed-band helper
 ├── figspec.py               NEW — numbering manifest + Croatian caption strings
-├── plot_5m.py               NEW — 6.4
-├── plot_ppo.py              NEW — 6.5–6.7
-├── plot_gamma.py            EXTENDED — 6.8–6.11
+├── plot_5m.py               NEW — sparse_vs_shaped_5M
+├── plot_ppo.py              NEW — ppo_stopa_hvatanja, ppo_elo, sonda_isporuke
+├── plot_gamma.py            EXTENDED — the four gama_* figures
 └── make_thesis_figures.py   NEW — runs all producers, regenerates INDEX.md
 ```
 
@@ -143,16 +146,12 @@ selected by regex per phase — so the plates form a consistent set.
 
 Four plates:
 
-| № | Run filter | Panels |
+| File | Run filter | Panels |
 |---|---|---|
-| P.1 | `POCA_(sparse\|shaped)_s[123]` | `Environment/Catch`, group reward, individual reward |
-| P.2 | `(POCA\|PPO)_(sparse\|shaped)_s1` | `Environment/Catch`, `Self-play/ELO` |
-| P.3 | `POCA_sparse_obsF_g.*` | `Environment/Catch`, `Self-play/ELO` |
-| P.4 | `POCA_sparse_s1` and `PPO_sparse_s1` | `Losses/Baseline Loss` beside `Losses/Value Loss` — the POCA run logs both, the PPO run logs no baseline loss at all, which is the visual proof the trainer really was POCA (evaluation doc, chapter 6.1/6.2 slot) |
-
-**Open assumption:** appendix figures are numbered `Slika P.1.`; the FESB Upute may prescribe a
-different convention for prilozi. To be confirmed against `Upute za pisanje diplomskog rada.doc`
-before the numbers are baked in.
+| `tb_5M_sparse_vs_shaped` | `POCA_(sparse\|shaped)_s[123]` | `Environment/Catch`, group reward, individual reward |
+| `tb_ppo_2x2` | `(POCA\|PPO)_(sparse\|shaped)_s1` | `Environment/Catch`, `Self-play/ELO` |
+| `tb_gama_sweep` | `POCA_sparse_obsF_g.*` | `Environment/Catch`, `Self-play/ELO` |
+| `tb_baseline_vs_value_loss` | `POCA_sparse_s1` and `PPO_sparse_s1` | `Losses/Baseline Loss` beside `Losses/Value Loss` — the POCA run logs both, the PPO run logs no baseline loss at all, which is the visual proof the trainer really was POCA. Also fills the §6.1 slot the evaluation doc asks for. |
 
 ## Boundaries
 
@@ -166,8 +165,9 @@ before the numbers are baked in.
 ## Success criteria
 
 1. `make_thesis_figures.py --check` passes for all 8 figures.
-2. All 8 figures render as PNG + SVG; in 6.4 the individual-reward panel visibly separates from the
-   group-reward panel, which is the farming result.
-3. `INDEX.md` gives, for each figure, a caption that can be pasted into Word unchanged.
+2. All 8 figures render as PNG + SVG; in the main 5M figure the individual-reward panel visibly
+   separates from the group-reward panel, which is the farming result.
+3. `INDEX.md` gives, for each figure, the section it belongs in and a caption that can be pasted
+   into Word unchanged.
 4. Appendix plates exist for all three phases at identical capture settings.
 5. Re-running the generator reproduces every figure from the event files alone.
