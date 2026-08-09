@@ -5,6 +5,44 @@ Each entry is one working session. Newest at the top.
 
 ---
 
+## 2026-08-09 — Thesis completion guide consolidated (branch `docs/thesis-completion-guide`)
+
+**Scope clarified with user:** Phase B (randomized obstacle layouts) is **dropped from the thesis
+plan** — stays future-work-only, never executed. This session did not touch the `.docx` (user
+edits it by hand); it produced `docs/VODIC_ZA_DOVRSETAK_RADA.md`, a single consolidated,
+re-verified completion guide merging two prior-session docs that had gone untracked:
+`EVALUACIJA_diplomskog_rada.md` (content/organization review) and `USKLADENOST_s_uputama_FESB.md`
+(FESB format compliance) — both now committed. `NACRT_3.5_samoigra_i_5.2_mjerne_velicine.md`'s
+draft text (self-play/ELO §3.5, metrics §5.2) has already been merged into the docx by the user.
+
+**Fresh docx extraction (zip → `word/document.xml`, 458 paragraphs) found the evaluation docs partly
+stale** — several items already fixed (Ch.6 title, table titles, "shaping-farming" naming, §6.4.2
+sparse→shaped fix), one major claim now wrong (the "ready to insert" main 5M sparse-vs-shaped figure
+doesn't exist — `Theory.md` §12 says that seed-aggregation is still pending, no script for it exists
+yet), and a new problem introduced by the Phase-B-drop decision: the docx still frames Phase B as
+upcoming active research (odl. 371, 369, 402) rather than dropped future work. Also cross-checked
+γ-sweep numbers against `Theory.md` §14 and caught a live inaccuracy in the docx (peak catch rate
+1.00 is at γ=0.95, not γ=0.99 as currently written) plus a still-unfixed conflated arena-throughput
+stat (4-arena smoke value mixed with the 12→16-arena bake-off pair).
+
+**Guide includes:** a merged, re-verified priority checklist (✅/🔴/⚠️ status per item); the T12
+(all 9 Phase A runs), T-val (400k), and T-ppo/T-probe/T-g-probe tables pre-filled from `Theory.md`,
+ready to paste; a figure map (7 of 11 numbered TensorBoard figures exist and are ready to insert;
+the main 5M figure needs a new analysis script first; ~8 more need diagrams/screenshots); a full
+23-entry Popis oznaka i kratica draft; a code-listing shortlist for the empty "Ostali prilozi"
+section. **Explicitly deferred** (per user instruction — these summarize the whole work and
+shouldn't be written until Phase B's framing is fully resolved): Zaključak, Sažetak/Ključne riječi,
+Title/Summary/Keywords, and the Uvod "seven chapters" count fix.
+
+**Git:** new branch `docs/thesis-completion-guide` off `feat/obstacles-gamma-sweep`; committed the
+3 previously-untracked markdown docs + `.gitignore` entries for the two binary Office files (the
+thesis `.docx` and the FESB `Upute za pisanje diplomskog rada.doc` stay untracked). Left an
+unrelated pre-existing unstaged `ProjectSettings.asset` Unity-editor diff untouched. **Next:** once
+the user has worked through the guide's priority list and the Phase B framing is settled, draft the
+deferred whole-work sections; no merge to main without explicit approval.
+
+---
+
 ## 2026-07-10 — Phase A COMPLETE + analyzed: γ=0.99 vindicated; 0.995 bimodal; pillars cost ~nothing
 
 All 9 fixed-pillar runs finished 5M (incl. the paused-and-resumed `g090_s1`). **Validity:** every
