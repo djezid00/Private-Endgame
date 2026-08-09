@@ -5,6 +5,48 @@ Each entry is one working session. Newest at the top.
 
 ---
 
+## 2026-08-09 — Figure export pipeline designed + planned (branch `docs/thesis-completion-guide`)
+
+**Paused before implementation.** This session ran *concurrently* with the thesis-guide session
+below, in the same working tree and branch; both stayed clean by staging explicit paths only and
+never `git add -A`.
+
+**Goal:** turn the finished results into insert-ready chapter-6 figures. Two tracks — matplotlib
+plots rendered from the raw `tfevents` files as the body figures, plus four uniform TensorBoard
+screenshot plates for the appendix. Scope is `Theory.md` §12 (5M sparse vs shaped), §13 (PPO 2×2 +
+delivery probe) and §14 (γ sweep Phase A); the 400k validation figures stay as they are.
+
+**Figure numbers are deliberately not baked in** — the author assigns them in Word. The pipeline's
+deliverable is *placement*: `docs/slike/INDEX.md` leads with which section each figure belongs in
+and which sentence it illustrates, alongside a ready-to-paste Croatian caption.
+
+**Findings that shaped the design, all verified against the data rather than assumed:**
+
+- The §6.3 **main figure does not exist**. Both `EVALUACIJA_diplomskog_rada.md` and earlier notes
+  marked it 📁 "ready to insert"; in fact only an untitled image sits in the docx, and no script
+  produces it. It needs new plotting code (Task 5).
+- The three PPO figures likewise have **no generating script** — they were hand-taken TensorBoard
+  screenshots. Only `plot_gamma.py` produces real plots.
+- **PPO runs never log `Environment/Group Cumulative Reward`.** Expected (PPO ignores group
+  rewards), but it means the 2×2 figures must be built from `Catch` and `Self-play/ELO` alone.
+- Series lengths differ per tag and per run (`Self-play/ELO` 23–101 points vs `Catch` ~100;
+  `PPO_shaped_s1` runs to step 5,050,000, the rest stop at 5,000,000). `plot_gamma.py` currently
+  truncates its x-axis with whichever run the loop finished on — a latent bug the new shared
+  `aggregate()` fixes by taking the shortest seed's steps explicitly.
+- System Python 3.12.4 already has numpy 2.2.4 and matplotlib 3.10.1, so **the plotting scripts
+  need no conda** — only TensorBoard does.
+
+**Artefacts:** spec `docs/superpowers/specs/2026-08-09-thesis-figure-export-design.md`
+(`4dae83d`, renumbered `888d375`, placement-first `b0456fb`); plan
+`docs/superpowers/plans/2026-08-09-thesis-figure-export.md` (`be10581`) — 10 TDD tasks using
+stdlib `unittest` (no pytest in this environment), ending in a `--check` gate that resolves every
+run and tag and fails loudly rather than shipping an empty axis.
+
+**Next session:** execute the plan subagent-driven (the user's choice). Nothing is implemented yet;
+no file under `experiments/analysis/` or `docs/slike/` has been created.
+
+---
+
 ## 2026-08-09 — Thesis completion guide consolidated (branch `docs/thesis-completion-guide`)
 
 **Scope clarified with user:** Phase B (randomized obstacle layouts) is **dropped from the thesis
