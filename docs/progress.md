@@ -5,6 +5,64 @@ Each entry is one working session. Newest at the top.
 
 ---
 
+## 2026-08-13 — TensorBoard figures captured (400k + 5M); docx re-evaluated after major expansion
+
+**Figures.** Recaptured the §11 validation set as **individually maximised single-card screenshots**
+(new TensorBoard "Time Series" UI, smoothing 0.8) instead of the old grouped multi-card grabs, which
+were unreadable at thesis print size. Picked the 5 load-bearing graphs rather than dumping every
+scalar: `Self-play/ELO`, `Environment/Catch`, `Episode Length`, `Group Cumulative Reward`,
+`Policy/Entropy` — pinned in TensorBoard so they survive reloads. Deliberately excluded
+`TimeToCatch` (known all-zeros bug in the 400k runs), individual `Cumulative Reward` (not comparable
+across arms), and `Lesson Number/distance_shaping_coef` (reads flat 0 for both arms — the curve does
+*not* show "coef 0 vs 0.5" as `Theory.md` §11 claims; `Lesson Number` tracks curriculum stage index,
+not the sampled value. **Theory.md §11's wording needs a fix**).
+
+All 5 verified against `Theory.md` §11 (ELO 1236.4/1163.7 vs 1212.6/1190.7; catch ~0.21 vs ~0.08;
+ep. length 374 vs 386; GroupR −0.75 vs −0.91) — exact matches. Files renamed and moved into
+`docs/figures/validation/tb_val_*.png`, replacing the 4 stale grouped ones. Croatian captions
+written for each. Then the same treatment for the §12 5M runs: 6 graphs × sparse + 6 × shaped in
+`docs/figures/5M_RUN/{sparse,shaped}/`, sparse set verified (ELO 1890.7/685.5/661.1, GroupR
++1.45/−0.87/−0.94) and captioned in Croatian.
+
+Note for whoever writes §11's figure block: the new UI assigns its own run colours (orange/green/
+purple/yellow), so `Theory.md`'s "blue/cyan = Chaser, red/pink = Runner" colour key is now wrong and
+must be rewritten to match. Also `Policy/Extrinsic Baseline Estimate` is numerically **identical** to
+`Extrinsic Value Estimate` in every run — an artifact of 1v1 groups (the counterfactual baseline has
+no teammate to condition on), worth stating explicitly so it doesn't read as a duplicated metric.
+
+**Docx re-evaluation.** The user expanded the thesis substantially (XML 478 kB → 968 kB; 392 → 725
+paragraphs; 14 → 27 figures; 5 → 8 tables; 0 → 3 code listings; 15 → 33 media files). Rescanned it
+and rewrote all three working docs against actual current content:
+`EVALUACIJA_diplomskog_rada.md` (→ revizija 3), `USKLADENOST_s_uputama_FESB.md` (→ revizija 2),
+`VODIC_ZA_DOVRSETAK_RADA.md` (→ revizija 2).
+
+- **Resolved:** abbreviations list (25 entries), per-chapter figure numbering (`Slika 2.1`…`6.17`),
+  uppercase chapter titles, self-play params filled (50k/50k/100k; 400k validation 25k/25k/50k),
+  γ-peak corrected to 0.95, 78 % consistency, code listings, 17 chapter-6 figures, Tables 5–7 + the
+  Phase A γ-table. **Every transferred number re-verified against `Theory.md` — all correct.**
+- **New defects, all from markdown→Word paste:** literal `**1,00**` in the γ-table; that table left
+  uncaptioned (won't enter Kazalo tablica); Tablica 5 missing its `Environment/Catch` row; decimal
+  points vs commas; 15 captions missing the space after the number (`Tablica 5400k`); typos
+  (`Envirnoment` ×4, `Lenght` ×2, `Culmutive`, `Rezultait`). All three field indexes stale → `F9`.
+- **Still open and highest-risk:** Uvod ¶115–120 is still the taxi/Kafka text from an unrelated
+  thesis (unchanged across three evaluations) + `Error! Reference source not found.` in ¶113; and
+  **Experiment 2 (MA-POCA vs PPO) still has a design section but no results anywhere**, while §6.4.2
+  cites "0.12 vs PPO 0.98" — a number the thesis never shows. Ready-to-paste tables are in `VODIC` §4.
+- **Phase B correction propagated:** EVALUACIJA revizija 2 wrongly recorded Phase B as dropped;
+  N1/N2 formally withdrawn. Phase B is **deferred** — it runs after the Phase A write-up is done,
+  and rebuild + `TagMApoca_obs_smoke` remains the first action when experiments resume.
+
+**Housekeeping.** User deleted `NACRT_konfiguracijska_datoteka.md` and `PARAMETRI_samoigre.md` (their
+content is now in the docx) and discarded `specs/2026-08-09-thesis-figure-export-design.md`; deletions
+staged and committed. `NACRT_3.5_…md` also removed — its §3.5/§5.2 draft text is now merged into the
+docx.
+
+**Branch state:** `docs/thesis-completion-guide`, **77 commits ahead of `main`, never pushed** — no
+remote branch exists yet. Next: work through `VODIC` §2 (paste artifacts) and §3 (Uvod, Experiment 2
+results), then the deferred whole-work sections (Zaključak, Sažetak/Abstract, Dodatak A).
+
+---
+
 ## 2026-08-09 — Figure export pipeline designed + planned (branch `docs/thesis-completion-guide`)
 
 **Paused before implementation.** This session ran *concurrently* with the thesis-guide session
