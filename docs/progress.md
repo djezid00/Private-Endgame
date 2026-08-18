@@ -5,6 +5,63 @@ Each entry is one working session. Newest at the top.
 
 ---
 
+## 2026-08-18 — Duplication + attribution audit of the docx; Theory.md figure block rebuilt
+
+**Docx rescan** (4.9 MB, 784 body elements, 32 figures, 11 tables, 3 code listings — up from 725
+paragraphs / 27 figures on 08-13). Big wins since last pass: **§6.2 "Rezultat POCA VS PPO" now
+exists** with the 2×2 table, closing the last "discussion cites data it never shows" gap; all three
+field indexes were refreshed (`F9`); table numbering went per-chapter; the γ-table got its caption
+and lost the literal `**` markdown; caption typos and missing spaces fixed. Zaključak / Sažetak /
+Dodatak A remain intentionally empty (deferred).
+
+**New deliverable: `DUPLIKATI_u_poglavljima_5_i_6.md`.** The user's sense that §5 and §6 repeat
+themselves is correct, with two distinct causes. (1) **§5.5 contains two complete versions of the
+same experiment** — a newer paste was never followed by deleting the older one, and the older copy
+is precisely where all three broken empty-formula spots live (`prema formuli .`, `dok pri  pada`,
+`(; ; )`), so deleting it clears a long-standing fix-list item for free. (2) **Results are written
+into chapter 5** ("Dizajn eksperimenta"), so chapter 6 necessarily repeats them. Six numbered fixes,
+all deletions/moves plus three bridging sentences — no rewriting of the user's prose. Moving the
+§5.5 results into 6.5.3 also repairs a cross-reference in 6.4.2 that currently points at a section
+which does not contain what it claims.
+
+**New: attribution audit** (added as EVALUACIJA §4). Five findings: five reproduced figures carry no
+source (`Slika 3.1` PPO pseudocode and `3.2` MuJoCo comparison → Schulman et al. [9]; `3.4` test
+environments → Cohen et al. [11]; `2.1`/`2.2` → [4]) while 3.3/3.5/4.2 are correctly attributed; the
+**ELO expected-score and update formulas have no citation** (Elo 1978); the "successive
+approximations" claim invokes Skinner uncited; and **two pursuit-evasion claims — one of which
+carries the RQ-C conclusion — are credited to a field rather than a work** (Isaacs 1965). Also
+flagged that the standing-term limitation is presented purely as own analysis when prior work
+(Wiewiora 2003, Grześ 2017) documents the general result; recommendation is to keep the derivation
+as own and claim the *quantification* as the contribution.
+
+**Theory.md rebuilt where it had gone stale:**
+- **§11 figure block replaced.** The four old references (`tb_overview`, `tb_elo`,
+  `tb_catch_episodelen`, `tb_policy`) were dangling — I deleted those files on 08-13 without
+  updating Theory. Now points at the five `tb_val_*.png` single-card captures. Downstream figures
+  renumbered (old 5–11 → 6–12); verified no prose cross-references existed, all 13 image links
+  resolve, numbering is a clean 1–12.
+- **§11 colour key corrected** — the Time Series UI assigns its own colours (orange/green/purple/
+  yellow); the documented "blue/cyan = Chaser, red/pink = Runner" no longer applies.
+- **§11 `Lesson Number` claim corrected.** It previously said that curve confirms coef 0.0 vs 0.5.
+  It does not — it reads flat 0 for **both** arms, because `Lesson Number` tracks the curriculum
+  stage index, not the sampled value. Arm selection is evidenced by the configs instead.
+- **Baseline/Value collapse documented** — `Extrinsic Baseline Estimate` is numerically identical to
+  `Extrinsic Value Estimate` (and `Baseline Loss` ≈ `Value Loss`) because at **group size 1** the
+  counterfactual baseline has no teammate to condition on. Previously unexplained; reads as a
+  duplicated metric otherwise.
+- **§12 item 2 closed** — the 5M captures exist for both arms; noted they are per-seed views, not
+  the seed-aggregated bands of item 1, which still need the aggregation script.
+- **§14: the `g090_s1` ELO worry is resolved, negatively.** ML-Agents docs warn that resuming
+  self-play resets reported ELO, which would have made that (paused/resumed) run incomparable.
+  Reading its tfevents directly shows the series is **continuous across the resume** — Chaser
+  1511.9 @1.90M → 1526.4 @1.95M, Runner 997.5 @1.80M → 983.8 @1.85M. No reset. Recorded as a
+  checked-and-dismissed caveat rather than left as an open doubt.
+
+**Still the top risk:** the Uvod is unchanged across four evaluations — taxi/Kafka/WebSocket/Firebase
+paragraphs from an unrelated thesis, plus `Error! Reference source not found.` in place of source [3].
+
+---
+
 ## 2026-08-13 — TensorBoard figures captured (400k + 5M); docx re-evaluated after major expansion
 
 **Figures.** Recaptured the §11 validation set as **individually maximised single-card screenshots**

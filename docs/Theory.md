@@ -255,9 +255,12 @@ Combined with the §5 finding that the workload is **environment/IPC-bound, not 
 ## 11. Validation results — sparse vs shaped, 400k steps
 
 Both arms (`TagVal_sparse_01`, coef 0; `TagVal_shaped_01`, coef 0.5) ran 400k steps, **same seed
-12345**, 8 arenas, identical except the chaser distance-shaping term. ELO and the `Lesson Number/
-distance_shaping_coef` curve confirm the arm was correctly selected from config (coef held at 0.0 vs
-0.5 throughout). POCA confirmed in both (finite `Losses/Baseline Loss`).
+12345**, 8 arenas, identical except the chaser distance-shaping term. ELO confirms the arms diverge as configured.
+*(Correction, 2026-08-13: an earlier version of this paragraph claimed the `Lesson Number/
+distance_shaping_coef` curve confirms the coef was held at 0.0 vs 0.5. It does not — that curve reads
+**flat 0 for both arms**, because `Lesson Number` tracks the curriculum **stage index**, not the
+sampled parameter value. Arm selection is evidenced by the configs in `experiments/configs/` and by
+the shaped arm's individual-reward divergence, not by this curve.)* POCA confirmed in both (finite `Losses/Baseline Loss`).
 
 ### Headline numbers (final-window values)
 
@@ -273,24 +276,41 @@ distance_shaping_coef` curve confirm the arm was correctly selected from config 
 | Cumulative Reward — Chaser (individual) | −1.94 (pinned ≈ −2) | +2.78 (rising) | shaped chaser is actively closing distance (incl. shaping term — see caveat) |
 | Policy/Entropy | ~1.43 | ~1.43 | both still high — neither policy has converged at 400k |
 
-### Figures (TensorBoard, smoothing 0.8; blue/cyan = Chaser, red/pink = Runner; brighter = shaped)
+### Figures (TensorBoard "Time Series" UI, smoothing 0.8)
 
-![All validation metrics, sparse vs shaped](figures/validation/tb_overview.png)
-*Fig. 1 — Overview of all logged scalars for both arms (validation runs only).*
+> **Colour key (recaptured 2026-08-13).** The Time Series UI assigns its own per-run colours:
+> **orange = shaped/Chaser, green = shaped/Runner, purple = sparse/Chaser, yellow = sparse/Runner.**
+> The pre-2026-08 captures used blue/cyan = Chaser, red/pink = Runner — that key no longer applies.
+> Each figure is a single maximised card (the earlier multi-card grabs were unreadable at print size).
 
-![Self-play ELO divergence](figures/validation/tb_elo.png)
-*Fig. 2 — `Self-play/ELO`. Both arms diverge from 1200 in opposing directions; the shaped arm's chaser
-rises higher (~1236) and its runner falls lower (~1164), i.e. a markedly larger competitive gap.*
+![Self-play ELO divergence](figures/validation/tb_val_elo.png)
+*Fig. 1 — `Self-play/ELO`. Both arms diverge from the 1200 start in opposing directions; the shaped
+arm separates further (Chaser 1236.4 / Runner 1163.7, gap +72.7) than the sparse arm (1212.6 /
+1190.7, gap +21.9) — shaping ≈ 3× the competitive separation at this horizon.*
 
-![Catch rate and episode length](figures/validation/tb_catch_episodelen.png)
-*Fig. 3 — `Environment/Catch` (catch rate) and `Environment/Episode Length` (time-to-catch proxy). The
-shaped arm sustains a higher catch rate and a lower episode length than the sparse arm.*
+![Catch rate](figures/validation/tb_val_catch.png)
+*Fig. 2 — `Environment/Catch`. Shaped ≈ 0.21 vs sparse ≈ 0.08 (≈ 2.5–3×); both far below the 5M
+values, consistent with neither policy having converged.*
 
-![Policy / critic diagnostics](figures/validation/tb_policy.png)
-*Fig. 4 — Policy group (per behavior, both arms): `Entropy` stays high (~1.40–1.43, policies not yet
-converged at 400k); `Extrinsic Value Estimate` and `Extrinsic Baseline Estimate` diverge (chaser
-negative, runner positive — the critic correctly predicts who is winning); `Learning Rate` decays
-linearly; `Epsilon` decays; `Beta` constant — i.e. the optimizer schedules behaved as configured.*
+![Episode length](figures/validation/tb_val_episode_length.png)
+*Fig. 3 — `Environment/Episode Length`. Shaped 374 vs sparse 386 decision steps — shaped catches
+sooner, both still near the 400-step cap.*
+
+![Group cumulative reward](figures/validation/tb_val_group_reward.png)
+*Fig. 4 — `Environment/Group Cumulative Reward`, the shaping-independent outcome metric (identically
+defined in both arms). Shaped Chaser −0.75 vs sparse −0.91: genuinely more wins, not just a larger
+reward number from the extra term.*
+
+![Policy entropy](figures/validation/tb_val_entropy.png)
+*Fig. 5 — `Policy/Entropy` stays high (1.407–1.433) in all four runs — no policy has converged at
+400k, consistent with the "400k validates the pipeline, not the ranking" caveat.*
+
+> **Note on the critic diagnostics** (previously Fig. 4, dropped in the recapture):
+> `Policy/Extrinsic Baseline Estimate` is **numerically identical** to `Policy/Extrinsic Value
+> Estimate` in every run. That is an artifact of the **1v1 group size** — MA-POCA's counterfactual
+> baseline marginalises the only actor, so with no teammate to condition on it collapses onto the
+> value function. Worth stating explicitly; it otherwise reads as a duplicated metric. The same
+> collapse shows up in the loss terms (`Value Loss` ≈ `Baseline Loss`, §2).
 
 ### Interpretation
 
@@ -410,7 +430,12 @@ the early telescoping approach component.)* The sparse chaser has **no such crut
 ### What still gets added here
 
 1. Aggregated **mean ± std across 3 seeds per arm** (ELO, catch rate, episode length, group reward) + error-band figures.
-2. **Sparse-vs-shaped 5M TensorBoard figures** (Playwright capture) incl. the now-fixed `Environment/TimeToCatch` (`090f4b5`).
+2. ~~**Sparse-vs-shaped 5M TensorBoard figures**~~ — **done 2026-08-13.** Six single-card captures
+   per arm (Catch, Cumulative Reward, Episode Length, Group Cumulative Reward, Entropy, ELO) in
+   `docs/figures/5M_RUN/sparse/` and `docs/figures/5M_RUN/shaped/`. Sparse values verified against
+   the table above (ELO 1890.7 / 685.5 / 661.1; GroupR +1.45 / −0.87 / −0.94). Note these are
+   per-seed TensorBoard views, **not** the seed-aggregated mean ± std bands of item 1, which still
+   need the aggregation script.
 3. A short **qualitative behavior description** from Editor inference (the visual contrast above).
 4. (Optional, §8) the **PPO sanity arm** for the MA-POCA-vs-PPO discussion.
 
@@ -521,14 +546,14 @@ mean with min–max band, dashed = PPO single seed). Okabe–Ito colours (colour
 labelled directly. Data pulled from the TensorBoard scalar API and re-plotted.
 
 ![Catch rate, 2×2](figures/ppo/tb_2x2_catch.png)
-*Fig. 5 — `Environment/Catch` (per-episode catch rate). Three of four cells climb to ~0.9–1.0; only
+*Fig. 6 — `Environment/Catch` (per-episode catch rate). Three of four cells climb to ~0.9–1.0; only
 **MA-POCA + shaped** (orange solid) stays pinned at ~1% for the full 5M — the farming trap. Note the
 delivery effect is invisible early and only diverges as shaping takes over: the PPO-shaped chaser (orange
 dashed), which receives the catch reward individually, learns to catch, while the otherwise-identical
 MA-POCA-shaped chaser never does.*
 
 ![Chaser ELO, 2×2](figures/ppo/tb_2x2_elo.png)
-*Fig. 6 — `Self-play/ELO` (chaser). Three cells diverge strongly upward (1726–1887); MA-POCA + shaped
+*Fig. 7 — `Self-play/ELO` (chaser). Three cells diverge strongly upward (1726–1887); MA-POCA + shaped
 stalls just above the 1200 start (~1258), never establishing skill over the runner — the ELO signature of
 the farming stall. ELO is shaping-independent (match outcomes), so this is not a reward-scale artefact.*
 
@@ -576,7 +601,7 @@ receives the terminal ±1 in **both** the group and the individual channel.
 | `PPO_shaped` (1 seed) | individual only | 0.98 | 1829 | — |
 
 ![Delivery-channel probe](figures/ppo/tb_probe_delivery.png)
-*Fig. 7 — Catch rate for the three shaped conditions (all coef 0.5), varying only where the terminal
+*Fig. 8 — Catch rate for the three shaped conditions (all coef 0.5), varying only where the terminal
 reward is delivered. Adding the individual terminal to MA-POCA (green) lifts catch rate ~10× off the
 group-only floor (orange, ~1%) and is **still rising at 5M** — but it never approaches PPO's early,
 decisive escape (blue, ~99% by ~2M).*
@@ -710,7 +735,7 @@ the reward the trapped agent accumulates scales as (1−γ), making low-γ shape
 *more* pathological in reward magnitude while equally broken in outcome.
 
 ![Gamma probes vs baseline, TensorBoard](figures/gamma/tb_probe_gamma.png)
-*Fig. 8 — TensorBoard capture of the three shaped conditions (probes γ=0.8/0.9 + the γ=0.99
+*Fig. 9 — TensorBoard capture of the three shaped conditions (probes γ=0.8/0.9 + the γ=0.99
 3-seed baseline): `Environment/Catch` bounces along the ~1 % floor for all conditions and all
 5M steps, while `Environment/Cumulative Reward` shows the (1−γ) harvest ladder in a single
 chart — the γ=0.8 chaser at ≈ +120, γ=0.9 at ≈ +48, γ=0.99 near +5. `Group Cumulative Reward`
@@ -737,17 +762,17 @@ all 9 runs. Values below are means of the last 5 TensorBoard points (last ~250k 
 | **0.995** (s3) | 1.00 | 1946 | 689 | 1257 | 43 | 105 | +1.43 |
 
 ![Catch-rate training curves per gamma](figures/gamma/sweepA_catch_curves.png)
-*Fig. 9 — Catch-rate training curves (rolling mean; bands = min–max over 3 seeds). γ=0.99
+*Fig. 10 — Catch-rate training curves (rolling mean; bands = min–max over 3 seeds). γ=0.99
 learns fastest (catch ≈ 1.0 by ~1.3M); γ=0.95 next; γ=0.9 and 0.8 slower and lower. The huge
 γ=0.995 band is one seed (`s1`) pinned near **zero** catch from ~1M to ~4.5M before a late
 recovery — see finding 3.*
 
 ![Final-value sensitivity vs gamma](figures/gamma/sweepA_sensitivity.png)
-*Fig. 10 — Final catch rate and ELO gap vs γ (per-seed points, line = mean). The curve rises
+*Fig. 11 — Final catch rate and ELO gap vs γ (per-seed points, line = mean). The curve rises
 to ~0.99 and then splits at 0.995: two seeds at the sweep's best values, one far below.*
 
 ![Self-play ELO, all 9 runs](figures/gamma/tb_sweepA_elo.png)
-*Fig. 11 — `Self-play/ELO` (TensorBoard): chasers fan out to 1650–1950, runners sink to
+*Fig. 12 — `Self-play/ELO` (TensorBoard): chasers fan out to 1650–1950, runners sink to
 650–800 — except `g0995_s1`, flat at ~1200 until ~4.3M before a late climb (chaser) and the
 only runner that holds above 1000.*
 
@@ -793,6 +818,12 @@ only runner that holds above 1000.*
 
 - 1 seed at γ ∈ {0.9, 0.95, 0.99}: the interior of the curve has no variance bars; the
   endpoint bands (3 seeds) are the guard against over-reading it.
+- **`g090_s1` pause/resume does NOT corrupt its ELO — checked 2026-08-18.** The ML-Agents docs warn
+  that "resuming self-play from a checkpoint will reset the reported ELO to its default value", which
+  would have made this run's ELO incomparable to the other eight (it was Ctrl+C'd at ~1.9M and
+  `--resume`d). Reading the tfevents directly shows the series is **continuous across the boundary**:
+  Chaser 1511.9 @1.90M → 1526.4 @1.95M, Runner 997.5 @1.80M → 983.8 @1.85M. No reset to 1200. The
+  γ=0.9 row of the table above is therefore comparable to its neighbours.
 - The γ=0.995 bimodality is n=3: "instability risk rises with horizon" is the claim the data
   supports; a rate estimate would need more seeds.
 - `Environment/Episode Length` (decision steps, averaged over ALL episodes incl. stalemates)
