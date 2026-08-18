@@ -5,6 +5,80 @@ Each entry is one working session. Newest at the top.
 
 ---
 
+## 2026-08-18 (cont. 2) — Phase B REDESIGNED as a multi-agent phase (brainstorm IN PROGRESS)
+
+**Status: design paused mid-brainstorm, nothing implemented, nothing launched.** The original
+`run_obs_phaseB.bat` (9 × 5M γ sweep at randomized layouts) was **not** started and is now superseded
+by a redesign the user proposed. Resume at step 5 of the `superpowers:brainstorming` checklist.
+
+**Why the redesign.** The user's observation: Phase A already established γ=0.99 as the operating
+point, so re-sweeping γ under randomized pillars spends 9 runs re-answering a settled question.
+Better use of the same compute: hold γ=0.99, keep randomized pillars, and add **team
+configurations (2v2, 3v3, 3v2, up to 8 agents)**.
+
+**This repairs a soft spot in the thesis, not just adds a variable.** §13 concluded "sparse
+equivalence CONFIRMED — MA-POCA ≈ PPO at 1v1", which currently reads as *the algorithm choice did
+not matter*. Confirmed again in today's smoke data: `Losses/Baseline Loss` 0.0205 vs
+`Losses/Value Loss` 0.0204 — the counterfactual baseline is numerically **inert at group size 1**.
+Teams are the condition under which MA-POCA is supposed to separate from PPO, so this phase can
+answer "why MA-POCA at all?", which the thesis currently cannot.
+
+**Decisions LOCKED so far (user-approved):**
+1. **Termination rule:** a tagged runner is deactivated and the episode continues until all runners
+   are caught or the clock expires. Chosen specifically because it is the only option that exercises
+   **posthumous credit assignment** — the "P" in MA-POCA — which the thesis has never tested.
+2. **Observations:** self stays in `VectorSensor` (9 floats); every other agent becomes a
+   variable-length entity in a **`BufferSensorComponent`** consumed by the trainer's attention
+   encoder. Permutation-invariant, tolerates the shrinking opponent set, and gives ONE behavior spec
+   across 2v2/3v3/3v2 — so a 2v2 brain can be evaluated in a 3v3 arena.
+3. **Architecture = Approach A**, generalize the existing classes in place (vs B: parallel
+   `TeamArenaManager` classes, rejected — duplicates ~500 lines and would put the 1v1 control on
+   different code from the 2v2 runs, defeating the control; vs C: hardcode 2v2, rejected — discards
+   the scaling question).
+4. **Run matrix DEFERRED** until the throughput bake-off + smoke gate measure real per-run
+   wall-clock. Estimate 5–8 h/run is an extrapolation from Phase A's ~4–4.5 h at 16 arenas × 2
+   agents; 8 agents/arena plus attention inference is a different load and arena count may need to drop.
+
+**Verified against the actual ML-Agents source (do not re-derive):**
+- `BufferSensorComponent` + `BufferSensor` exist in the local package
+  (`com.unity.ml-agents/Runtime/Sensors/`), and the trainer has `torch_entities/attention.py`.
+  No version blocker.
+- **THE TRAP:** `SimpleMultiAgentGroup.RegisterAgent` does `agent.OnAgentDisabled += UnregisterAgent`
+  (`SimpleMultiAgentGroup.cs:33`), so `SetActive(false)` **auto-unregisters** the agent. This is why
+  the canonical DungeonEscape example never calls `UnregisterAgent` explicitly and why it MUST
+  **re-register every agent on reset**. Miss that and the group silently drains to empty over
+  episodes — rewards go nowhere, no error is raised. `RegisterAgent` is idempotent (HashSet +
+  contains-check), so unconditional re-registration is safe.
+- `EndGroupEpisode()` iterates registered agents calling `agent.EndEpisode()`;
+  `GroupEpisodeInterrupted()` calls `EpisodeInterrupted()`. Registration is not cleared by either.
+- Canonical death pattern (DungeonEscape `DungeonEscapeEnvController.cs`): on death just
+  `agent.gameObject.SetActive(false)` and decrement a remaining-players counter; on reset
+  `SetActive(true)` + `RegisterAgent`.
+
+**Design Section 1 (architecture) presented, awaiting approval.** Five components:
+`TagArenaManager` (refactor — owns `List<TagAgent>` per role, step clock, reset, termination),
+`TeamManager` (new — activates N chasers + M runners from env-params, mirroring `ObstacleManager`),
+`TagAgent` (modify — BufferSensor, no longer drives clock/reset), `TagReward` (extend —
+team-normalized terminal math), `SpawnPlacement` (new pure module + tests).
+- `TagArena.prefab` to carry **4 chasers + 4 runners authored inactive**, env-param activated ⇒
+  **one scene, one binary for the whole matrix**, no rebuild between 2v2 and 3v3.
+- New env-params `num_chasers` / `num_runners`, **both defaulting to 1 ⇒ all existing configs stay
+  byte-identical** and Phase A / §12 / §13 remain reproducible (same discipline as `num_obstacles`).
+- The step-clock move into the manager's `FixedUpdate` **fixes CLAUDE.md gotcha #3** (reset currently
+  a side effect of the chaser's `OnEpisodeBegin`), and is mandatory once no chaser is privileged.
+- **Regression run agreed as the safeguard:** because the refactor changes the arena loop, the new
+  1v1 is not byte-identical to Phase A's. Plan includes 1v1 / fixed pillars / γ=0.99 on the new code
+  compared against the existing `POCA_sparse_obsF_g099_s1`; must land in the seed band.
+
+**Sections still to present:** 2 reward structure with teams (most consequential remaining — team
+normalization is what keeps 2v2 comparable to the 1v1 baselines), 3 staged execution, 4 testing.
+Then: write spec to `docs/superpowers/specs/`, self-review, user review, then `writing-plans`.
+
+**Not superseded:** the rebuilt binary and the passed smoke gate from the entry below remain valid
+for the *current* code. The team refactor will require a new build and a new smoke gate.
+
+---
+
 ## 2026-08-18 (cont.) — Phase B resumed: rebuild + obstacle smoke gate PASSED
 
 **Experiments resume.** User declared the write-up satisfactory for now and chose to run Phase B.
@@ -42,7 +116,8 @@ stream ordering; the 02≡03 identity is the airtight half.
 Non-anomaly worth not re-investigating: Runner logs to step 60000 while Chaser stops at 50000 —
 self-play `team_change`/`swap_steps` boundaries differ per behaviour. `ObsSmoke_01` shows it too.
 
-**Next:** `experimentsun_obs_phaseB.bat` — 9 × 5M, sparse, `num_obstacles: 4`,
+**Next:** `experiments
+un_obs_phaseB.bat` — 9 × 5M, sparse, `num_obstacles: 4`,
 `obstacle_layout: 1` (γ=0.8 ×3 seeds, 0.9/0.95/0.99 ×1, 0.995 ×3 seeds), ~36–42 h unattended.
 No `POCA_sparse_obsR_*` results exist ⇒ clean start, no `--resume`. Then analysis into Theory §14
 against the pre-registered RQ-C prediction (randomized layouts learn slower and end lower than

@@ -216,6 +216,37 @@ Albert also had a couple moments of throwing the cubes at Kai and spinning with 
 >   change: REBUILD headless binary + re-run `TagMApoca_obs_smoke` gate BEFORE `run_obs_phaseB.bat`.**
 > - Remaining: Phase B (9×5M random layouts) → §14 completion; then `finishing-a-development-branch`
 >   (NO merge to main without explicit approval). Deferred design notes + verdict: Theory **§15**.
+>
+> **Updated 2026-08-18 (thesis write-up paused; Phase B REDESIGNED as a multi-agent phase).**
+> - **Branch `feat/obstacles-phase-b`** (off `docs/thesis-completion-guide`, which carries all
+>   obstacle code + the `ca64ed0` RNG fix + the thesis docs). Headless binary **rebuilt**
+>   (the old one predated `ca64ed0` — it would NOT have been `--seed`-reproducible).
+> - **Obstacle smoke gate PASSED** (`ObsSmoke_02`): `[ObstacleManager] num_obstacles=4,
+>   layout=random` logged, finite Baseline Loss, zero non-finite values across 20 tags, Catch 0.069,
+>   Episode Length ~393. **RNG fix verified:** `ObsSmoke_02` ≡ `ObsSmoke_03` (same seed, separate
+>   launches) identical to 4 decimals on every metric — impossible under the old wall-clock seeding.
+> - **The 9-run γ sweep at randomized layouts (`run_obs_phaseB.bat`) was never launched and is
+>   SUPERSEDED.** Phase A already settled γ=0.99 as the operating point, so re-sweeping γ spends
+>   9 runs on a closed question.
+> - **New Phase B = γ=0.99, sparse, randomized pillars, + TEAM configurations** (2v2 / 3v3 / 3v2,
+>   up to 8 agents). Rationale: at 1v1 the MA-POCA counterfactual baseline is **numerically inert**
+>   (`Baseline Loss` 0.0205 ≈ `Value Loss` 0.0204), which is why §13 found MA-POCA ≈ PPO. Teams are
+>   the condition under which the algorithm is supposed to separate — so this phase answers
+>   "why MA-POCA at all?", which the thesis currently cannot.
+> - **Design brainstorm IN PROGRESS — paused at step 5 of `superpowers:brainstorming`.** Locked:
+>   (1) tagged runner deactivates, episode continues ⇒ exercises **posthumous credit assignment**;
+>   (2) self in `VectorSensor` + others in **`BufferSensorComponent`** (attention, permutation-
+>   invariant, one behavior spec across all team sizes); (3) **Approach A** — generalize existing
+>   classes in place; (4) run matrix **deferred** until a throughput bake-off measures per-run cost.
+>   Sections still to present: reward structure, staged execution, testing. Then spec → plan.
+> - **ML-Agents gotcha to respect:** `SimpleMultiAgentGroup.RegisterAgent` does
+>   `agent.OnAgentDisabled += UnregisterAgent`, so `SetActive(false)` **auto-unregisters**. Agents
+>   MUST be re-registered on every arena reset (as DungeonEscape does) or the group silently drains
+>   to empty with no error. `RegisterAgent` is idempotent.
+> - Planned new env-params `num_chasers` / `num_runners`, **defaulting to 1** ⇒ every existing config
+>   stays byte-identical. The refactor moves the step clock + reset into `TagArenaManager.FixedUpdate`,
+>   which **fixes gotcha #3 below**; a **1v1 regression run** vs `POCA_sparse_obsF_g099_s1` guards it.
+
 
 ### TagAgent.cs — Key Facts
 - Inherits from `Unity.MLAgents.Agent`
