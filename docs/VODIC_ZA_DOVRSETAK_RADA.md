@@ -1,152 +1,119 @@
-# Vodič za dovršetak diplomskog rada — revizija 2 (13.8.2026.)
+# Vodič za dovršetak diplomskog rada — revizija 3 (18.8.2026.)
 
-> **Što je ovo.** Radna lista za ručni dovršetak `.docx`-a. Revizija 1 (9.8.2026.) spajala je
-> `EVALUACIJA_diplomskog_rada.md` i `USKLADENOST_s_uputama_FESB.md`. Ova revizija je **ponovno
-> provjerena izravnim čitanjem trenutnog `.docx`-a (13.8.2026., 725 odlomaka, 8 tablica, 27 slika,
-> 3 isječka koda, 33 medijske datoteke)** — rad je od prošle revizije **narastao otprilike
-> dvostruko** (XML 478 kB → 968 kB). Claude ne dira `.docx`; sve se radi ručno u Wordu.
+> **Što je ovo.** Objedinjena radna lista za ručni dovršetak `.docx`-a, provjerena izravnim čitanjem
+> trenutnog dokumenta (784 elementa, 32 slike, 11 tablica, 3 isječka koda). Claude ne dira `.docx`.
 >
-> **Status Faze B (ispravak, potvrđeno 9.8.2026.):** Faza B je **odgođena, nije otkazana**. Redoslijed
-> je: dovrši teoriju i pisanje za Fazu A i sve prije nje → *zatim* pokreni Fazu B. Prva radnja pri
-> povratku na eksperimente ostaje rebuild + `TagMApoca_obs_smoke` gate. `EVALUACIJA` N1/N2 to i dalje
-> bilježi pogrešno („Faza B otpada") — ispravljeno u ovoj reviziji.
+> **Prateći dokumenti:**
+> - `DUPLIKATI_u_poglavljima_5_i_6.md` — **novo**, detaljan popis ponavljanja i točnih zahvata
+> - `EVALUACIJA_diplomskog_rada.md` — sadržajna ocjena + provjera atribucije
+> - `USKLADENOST_s_uputama_FESB.md` — formalna usklađenost s Uputama
 >
-> **Odgođeno do kraja (ne piši još):** Zaključak, Sažetak/Ključne riječi, Title/Summary/Keywords i
-> ispravak broja poglavlja u Uvodu — čekaju konačan oblik rada (§7).
+> **Status Faze B:** odgođena, nije otkazana. Rad to sada i eksplicitno navodi u 5.6, što je ispravno.
 
 ---
 
-## 1. Što je riješeno od prošle revizije ✅
-
-Velik napredak. Provjereno u tekstu, ne po sjećanju:
+## 1. Riješeno od prošle revizije ✅
 
 | Bilo | Sada |
 |---|---|
-| **Popis oznaka i kratica prazan** | ✅ **Popunjen, 25 stavki**, abecedno (odl. 688–712) |
-| Numeracija slika `Slika 21`, `Slika 41` (bez točke) | ✅ **`Slika 2.1` … `Slika 6.17`** — po poglavljima, s točkom |
-| Naslovi poglavlja miješana veličina slova | ✅ **Svih 7 naslova VELIKIM SLOVIMA** |
-| „Pregled korištenih **rml** Algoritama" | ✅ **„PREGLED KORIŠTENIH RML ALGORITAMA"** |
-| Parametri samoigre `⟨save_steps⟩` u zagradama | ✅ **Popunjeni**: `save_steps` = `swap_steps` = 50 000, `team_change` = 100 000; validacija 400k = 25 000/25 000/50 000 (odl. 495–501) |
-| Bilješka „EXPLAIN: Konkretni parametri samoigre…" | ✅ Uklonjena, zamijenjena stvarnim tekstom |
-| „stopa hvatanja … 1,00 **pri γ=0,99**" (netočno) | ✅ **Ispravljeno na γ=0,95** (odl. 566) |
-| Nedosljednost 78 % / ~80 % | ✅ **Ujednačeno na 78 %** (odl. 329 i 508) |
-| U radu nema nijednog isječka koda | ✅ **Tri listinga**: `Kod 31` (oblikovanje nagrade), `Kod 41` (funkcija oblikovanja), `Kod 42` (konfiguracijska datoteka) + `OnAgentTagged` u §4.5 |
-| Poglavlje 6 bez slika | ✅ **17 slika (6.1–6.17)**: 5 × validacija 400k, 6 × sparse 5M, 6 × shaped 5M |
-| Nedostaju tablice rezultata | ✅ **Tablica 5** (400k validacija), **Tablica 6** (sparse 5M), **Tablica 7** (shaped 5M) + **nenumerirana γ-tablica** (9 pokreta) |
-| Naslovi tablica ispod tablice | 🟡 **Djelomično**: Tablice 5, 6, 7 imaju naslov **iznad** (ispravno); Tablice 1–4 i dalje **ispod** |
-| §4.6 tanak, bez scene | ✅ Znatno proširen + novo potpoglavlje **„Scena"** sa `Slika 4.2` (16 arena) — riješen jedan TODO |
-
-**Provjera brojeva:** sve vrijednosti u Tablicama 5/6/7 i u γ-tablici **točno odgovaraju** `Theory.md`
-(ELO 1890,7 / 685,5 / 661,1; GroupR +1,45 / −0,87 / −0,94; shaped −0,98/−1,00/−0,96 uz Mean Reward
-5,38/3,93/4,29; γ-tablica svih 9 redaka). Nema izmišljenih brojeva.
+| Eksperiment 2 (POCA vs PPO) bez rezultata | ✅ **Novo potpoglavlje 6.2 + Tablica 6.2** — rasprava više ne citira nepokazane podatke |
+| Sva tri kazala zastarjela | ✅ Osvježena (`F9`): 32 slike, 11 tablica, 3 koda |
+| γ-tablica bez naslova, s markdown zvjezdicama | ✅ „Tablica 6.6", zvjezdice uklonjene |
+| Tablica 400k bez retka sa stopom hvatanja | ✅ Redak `Environment/Catch` dodan |
+| Decimalne točke u tablici 400k | ✅ Zarezi |
+| Tipfeleri i nedostajući razmaci u naslovima slika | ✅ Ispravljeno |
+| `Kod 31`, `41`, `42` | ✅ `Kod 3.1`, `4.1`, `4.2` |
+| Tablice numerirane linearno | ✅ Po poglavljima (`5.1`…`6.6`) |
+| Faza A/B bez obrazloženja | ✅ Novo obrazloženje u 5.6 + izjava da Faza B nije provedena |
+| Nema dokaza za MA-POCA | ✅ `Slika 6.1` (Baseline Loss, POCA vs PPO) |
 
 ---
 
-## 2. Novo uočeno — nastalo pri unosu (popravi prvo, brzo je) 🔴
+## 2. Prioritet 1 — ponavljanja u poglavljima 5 i 6 🔴
 
-Ovo su **nove greške koje prije nisu postojale**, nastale kopiranjem iz markdowna:
+**Ovo je sada najveći problem u radu i najbrže se rješava jer je uglavnom brisanje.**
+Potpuni popis zahvata: **`DUPLIKATI_u_poglavljima_5_i_6.md`**. Sažetak:
 
-| # | Mjesto | Problem | Popravak |
-|---|---|---|---|
-| **N1** | γ-tablica (§6.4.3, iza odl. 648) | **Ostali `**` znakovi iz markdowna**: ćelija piše `**1,00**` umjesto `1,00` | Obriši zvjezdice; podebljaj Wordovim boldom ako želiš isticanje |
-| **N2** | ista γ-tablica | **Nema naslov ni broj** — jedina tablica u radu bez `Opisslike` naslova ⇒ neće ući u Kazalo tablica | Dodaj naslov **iznad**: „Tablica 6.4. Rezultati Faze A — devet konfiguracija γ pretraživanja" (broj prilagodi shemi iz N7) |
-| **N3** | Tablica 5 (400k) | **Nedostaje redak `Environment/Catch`** — a to je glavna ishodna metrika, tekst je spominje („~2,5–3× veću stopu hvatanja") i `Slika 6.1` je prikazuje | Dodaj redak: `Environment/Catch (stopa hvatanja)` \| `~0,08` \| `~0,21` \| `oblikovanje ≈ 2,5–3× veća stopa hvatanja` |
-| **N4** | Tablica 5 (400k) | **Decimalne točke** (`1212.6`, `+21.9`, `−0.91`) dok Tablice 6/7 koriste **zareze** (`1890,7`) | Zamijeni sve točke zarezima — Upute traže decimalni zarez |
-| **N5** | 15 naslova slika/tablica | **Nedostaje razmak iza broja**: `Slika 6.1Stopa…`, `Slika 3.3Uzoračka…`, a najgore **`Tablica 5400k validacija`** (čita se kao „Tablica 5400k") | Dodaj razmak iza broja u svih 15 (`Slika 3.3`, `3.4`, `3.5`, `6.1`–`6.5`, `6.7`–`6.9`, `6.12`–`6.15`, `Tablica 5`, `Tablica 7`) |
-| **N6** | naslovi slika u pogl. 6 | **Tipfeleri**: `Envirnoment` (4×), `Lenght` (2×), `Culmutive`, `Cumultive`, `Rezultait`, `objeruke` (2×), `grafovasnimljenih` | Ispravi: Environment, Length, Cumulative, Rezultati, „obje ruke", „grafova snimljenih" |
-| **N7** | sve tablice | Numeracija i dalje **linearna** (`Tablica 1`…`7`) iako su slike prešle na **po poglavljima** (`Slika 6.1`) — nedosljedno unutar istog rada | Prebroji tablice po poglavljima: `Tablica 4.1` (nagrade), `5.1` (mjerne veličine), `5.2` (dizajn ruku), `6.1` (loss), `6.2` (400k), `6.3` (sparse 5M), `6.4` (shaped 5M), `6.5` (γ Faza A) |
-| **N8** | naslovi kodova | `Kod 31`, `Kod 41`, `Kod 42` — bez točke, ne prate novu shemu slika | → `Kod 3.1`, `Kod 4.1`, `Kod 4.2` |
-| **N9** | odl. 36–37, 598, 616 | Prazni `Opisslike` odlomci (naslovi bez sadržaja) | Obriši — inače stvaraju prazne retke u Kazalu |
-
----
-
-## 3. Staro, i dalje otvoreno 🔴
-
-| # | Mjesto | Problem | Status |
-|---|---|---|---|
-| **A1** | §5.6 „Faza A", odl. 563–568 | Rezultati γ-sweepa i dalje **opisani dvaput** — ovdje (prozom, s brojkama) i u §6.4.3 (gdje je i tablica) | 🔴 nepromijenjeno. Poglavlje 5 = dizajn i predikcije; **premjesti odl. 566–568 u §6.4.3** |
-| **A2** | odl. 570 (uvod u pogl. 6) | Opisuje Fazu A i Fazu B kao da su **obje provedene** („istraživanje je podijeljeno u dvije faze… Faza B rješava taj problem") | 🔴 Preformuliraj u: Faza A je provedena, Faza B je **planirani nastavak koji nije proveden u okviru ovog rada** |
-| **A3/A4** | odl. 568, 652 | „…motivira Fazu B … kao sljedeći korak istraživanja"; „Faza B … **ispitat će** robustnost" | 🟢 **Ovo je sada ispravno** (Faza B je odgođena, ne otkazana) — samo osiguraj da nigdje ne zvuči kao da su rezultati Faze B već dobiveni |
-| **A10** | odl. 294 (§3.4.6) | Visjeća referenca **„§12 i §14"** — ne postoje takva poglavlja | 🔴 Zamijeni s „§6.4.3" (γ-sonde i stalni član) |
-| **A11** | odl. 637 (§6.3.2) | **„[pogl. X.Y]"** — nepopunjen placeholder | 🔴 Zamijeni s „§6.4.3" |
-| **A14** | odl. 561–562 (§5.5) | **Prazne jednadžbe**: „prema formuli **.**", „dok pri **[prazno]** pada", „u sve tri testirane konfiguracije **(; ; )**" | 🔴 Popuni: horizont ≈ 1/(1−γ); drugi γ je **0,8** (5 odluka / 25 fiz. koraka); tri konfiguracije = **γ = 0,8; 0,9; 0,99** |
-| **A16** | odl. 503 (§4.6) | „Povećanje broja arena **od 4 na 16** → sa ~277 na ~553 (**+100 %**)" — **spaja dva odvojena mjerenja** | 🔴 Po `Theory.md` §10: 277 je iz **smoke-testa s 4 arene**; bake-off je **12 arena = 495 → 16 arena = 553 (+12 %)**. Prepiši u dvije rečenice |
-| **A18** | odl. 115–120 (Uvod) | **Šest odlomaka o Taxi aplikacijama, Apache Kafki, WebSocketu, Firebaseu i FUBAR Taxiju** — tekst iz tuđeg rada | 🔴 **NAJVEĆI RIZIK PRI PREDAJI.** Ovo nije vezano uz Fazu B — može se i treba izbaciti odmah (zamjenski tekst tek kad se zna konačan broj poglavlja, §7) |
-| **A19** | odl. 113 (Uvod) | **„Error! Reference source not found."** — pokvarena Word referenca na izvor [3] (Dota 2) | 🔴 Ponovno umetni referencu `[3]` |
-| **A20** | §5.4 / poglavlje 6 | **Eksperiment 2 (MA-POCA vs PPO, matrica 2×2) i dalje ima dizajn, ali NIGDJE rezultate** — a §6.4.2 se poziva na brojku „0,12 naspram PPO-ovih 0,98" koja se nigdje ne prikazuje | 🔴 Dodaj potpoglavlje s tablicom 2×2 i sondom isporuke (podaci u §4 ovog vodiča) — inače rasprava citira nepokazane podatke |
-
----
-
-## 4. Tablice koje još nedostaju (podaci gotovi, prijenos ~30 min)
-
-Sve ostalo iz prošle revizije je uneseno. Ostaju dvije, obje vezane uz **A20**:
-
-### T-ppo — Matrica 2×2 (POCA/PPO × sparse/shaped, 5M)
-*Izvor: `Theory.md` §13. Ide u poglavlje 6 (rezultati), ne u §5.4 (dizajn).*
-
-| Konfiguracija | Stopa hvatanja | Napomena |
+| # | Što | Zahvat |
 |---|---|---|
-| POCA + rijetka | ~1,00 | referentna točka |
-| PPO + rijetka | ~0,90 | PPO neznatno slabiji od MA-POCA |
-| PPO + oblikovana | ~0,98 | PPO **izbjegava** zamku |
-| POCA + oblikovana | ~0,01 | **jedina ćelija koja upada u farming-zamku** |
+| D1 | **5.5 sadrži dvije potpune verzije istog eksperimenta**; starija ima prazne jednadžbe | Obriši stariju verziju — **usput nestaju sve tri prazne jednadžbe** |
+| D2 | 5.5 sadrži rezultate (dizajn ≠ rezultati) | Premjesti tri odlomka u 6.5.3; ovime **postaje točna** i uputa iz 6.4.2 koja sada vodi na krivo mjesto |
+| D3 | 5.6 sadrži rezultate Faze A koje poglavlje 6 ponavlja | Obriši tri odlomka, dodaj veznu rečenicu |
+| D4 | „Zamka ima dva uzroka" napisano dvaput (6.2 i 6.5.2) | U 6.5.2 izbaci ponovljenu brojku, zamijeni uputom na Tablicu 6.2 |
+| D5 | Inverzija 400k → 5M ispričana triput | Zadrži u 6.5.1, obriši iz 6.4.2, popravi nabrajanje na dvije stavke |
+| D6 | Dvije pokvarene upute: „potpoglavlju **0**", „poglavlje **0**" | Obje trebaju pokazivati na 6.4.2 |
 
-### T-probe — Sonda kanalske isporuke nagrade
-*Izvor: `Theory.md` §13. Ovo je brojka koju §6.4.2 već citira.*
+---
 
-| Način isporuke terminalne nagrade | Stopa hvatanja |
+## 3. Prioritet 2 — Uvod 🔴
+
+| # | Problem | Zahvat |
+|---|---|---|
+| U1 | Odlomci o **Taxi aplikacijama, Apache Kafki, WebSocketu, Firebaseu, „FUBAR Taxiju"** — tekst iz tuđeg rada, nepromijenjen kroz četiri revizije | Izbaci. Nije vezano ni uz što odgođeno |
+| U2 | **„Error! Reference source not found."** umjesto izvora [3] | Ponovno umetni referencu |
+| U3 | „Rad je podijeljen na **sedam** poglavlja" | 🟡 Odgodi dok struktura ne bude konačna (§7) |
+
+---
+
+## 4. Prioritet 3 — atribucija (~1 h) 🔴
+
+Detaljno u `EVALUACIJA_diplomskog_rada.md` §4. Sažetak:
+
+| # | Mjesto | Zahvat |
+|---|---|---|
+| C1 | `Slika 2.1`, `2.2`, `3.1`, `3.2`, `3.4` — preuzete, **bez navedenog izvora** | Dodaj „Preuzeto iz: [4] / [9] / [11]" u naslov slike, kao kod `Slike 3.3` |
+| C2 | **ELO formule** (3.5.3) bez izvora | Citiraj *Elo, A. E.: „The Rating of Chessplayers, Past and Present", Arco, New York, 1978.* |
+| C3 | **Podrijetlo shapinga** iz bihevioralne psihologije, „successive approximations" (4.6.1) | Citiraj Skinnera (1938.) ili [12] |
+| C4 | **Tvrdnje iz teorije progona i bijega** (3.4.6 i 6.5.4) — nose zaključak RQ-C | Citiraj *Isaacs, R.: „Differential Games", Wiley, New York, 1965.* |
+| C5 | „Stalni član" predstavljen isključivo kao vlastiti nalaz (3.4.6) | Dodaj rečenicu koja priznaje raniji rad (Wiewiora 2003., Grześ 2017.); doprinos ovog rada je **kvantifikacija** i veza s farming-zamkom |
+
+---
+
+## 5. Prioritet 4 — brojčane i formalne ispravke
+
+| # | Mjesto | Problem |
+|---|---|---|
+| A16 | 4.6 | „od 4 na 16 → sa ~277 na ~553" **spaja dva mjerenja**: 277 je smoke-test s 4 arene; bake-off je 12 → 16 arena (495 → 553, +12 %) |
+| F1 | cijeli rad | **Nijedna jednadžba nije numerirana** |
+| F2 | starije tablice | Naslov ispod tablice; treba iznad |
+| F3 | 6.4.1 / 6.4.2 | Dvojezični naslovi („Sparse arm", „Shaped arm") |
+| F4 | poglavlje 2 | Prvo lice množine, 8 mjesta |
+| F5 | literatura | IEEE format; [1]–[4] bez autora |
+| F6 | 5.4 | Doslovan navod iz dokumentacije ostao na engleskom |
+
+---
+
+## 6. Slike koje još treba izraditi
+
+| Mjesto | Grafika |
 |---|---|
-| samo grupni kanal (izvorni MA-POCA) | ~0,01 |
-| grupni + individualni (`individual_terminal_reward`) | ~0,12 (djelomičan oporavak, još raste) |
-| samo individualni (PPO-stil) | ~0,98 |
-
-Zaključak koji ove dvije tablice potkrepljuju (već napisan u odl. 644–645): zamka ima **dva uzroka** —
-kanal isporuke nagrade (nužan uvjet) i algoritamska osjetljivost MA-POCA (nije sam po sebi dovoljan).
+| **5.4** | **Dijagram toka nagrade MA-POCA vs PPO** — najveća vrijednost za uloženi trud; nosi objašnjenje zamke |
+| 4.2 | Tortni dijagram profila vremena (env_step 78 %, inference 14 %, gradijenti 6 %) |
+| 4.4 | Shematski tlocrt arene 20×20 s raycast zrakama |
+| 3.4.6 | Graf Φ(s) + stalnog člana koji raste s udaljenošću |
 
 ---
 
-## 5. Slike — stanje
+## 7. Odgođeno — piši na kraju
 
-**Uneseno (27 slika):** `2.1`–`2.3`, `3.1`–`3.5`, `4.1`, `4.2`, `6.1`–`6.17`. Poglavlje 6 je time
-vizualno kompletno za validaciju 400k i za obje ruke 5M treninga.
+- **Zaključak** (do 2 str.) — prazan
+- **Sažetak** + **Ključne riječi** — prazni
+- **Title / Summary / Keywords** — prazni
+- **Ostali prilozi i dokumentacija** — Dodatak A (repozitorij `Private-Endgame`, popis priloga,
+  `.onnx` modeli u `Assets/Models/5M/`)
+- **Uvod, broj poglavlja** — uskladiti s konačnom strukturom
 
-**Preostali `TODO` markeri u tekstu (4):**
-
-| Odl. | Što traži | Status |
-|---|---|---|
-| 291 | Graf potencijalne funkcije Φ(s) + stalnog člana (1−γ)·coef·(d/maxDist) | 🔨 treba izraditi (trivijalno u matplotlibu) |
-| 330 | Tortni dijagram wall-clock profila (env_step 78 %, inference 14 %, gradijenti 6 %) | 🔨 treba izraditi, brojevi poznati |
-| 338 | Shematski tlocrt arene 20×20 s raycast zrakama | 🔨 treba izraditi |
-| 562 | Dijagram toka nagrade MA-POCA vs PPO | 🔨 treba izraditi — **najveća vrijednost za uloženi trud**, nosi cijelo objašnjenje zamke (i veže se uz A20) |
-| 579 | TensorBoard screenshot `BaselineLoss` iz dim-testa | 🔨 screenshot iz `TagTest_poca_01`, ako TB podaci postoje |
-
-**Nije obavezno, ali podiže dojam:** shema arhitekture MA-POCA kritičara (§3.4.3), 2×3 mreža sličica
-iz Editor-inferencije koja vizualno suprotstavlja sparse Chasera (presijeca put) i shaped Chasera
-(farmira izdaleka) u §6.3.2.
+Sav materijal postoji u `Theory.md` §§11–15 i u poglavlju 6 — riječ je o sažimanju, ne o novom
+istraživanju.
 
 ---
 
-## 6. Prije predaje — mehanički koraci
+## 8. Redoslijed
 
-1. **`Ctrl+A` → `F9`** (osvježi sva polja). **Ovo je sada obavezno**: Kazalo slika još uvijek prikazuje
-   staru numeraciju (`Slika 21`…`Slika 41`, 9 stavki) umjesto 27 novih, Kazalo tablica prikazuje 6 od 8,
-   a Kazalo kodova i dalje piše „No table of figures entries found" iako u radu **postoje tri isječka**.
-2. Provjeri da svako poglavlje počinje na novoj stranici (uključi *Page break before* u stilu `Naslov1`).
-3. Provjeri da su svi naslovi tablica **iznad** tablica (Tablice 1–4 još nisu).
-4. Numeriraj formule po poglavljima `(2.1)`, `(3.1)`… — **nijedna od ~30 jednadžbi još nema broj**.
-5. Ispravi preostale decimalne točke u prozi (`0.5` u §3.4.6, `99.4%` u Uvodu) u zareze.
-
----
-
-## 7. Odgođeno — piši tek na kraju
-
-- **Zaključak** (do 2 str.) — prazan (odl. 656). Sažima RQ-A/B/C ishode + status Faze B.
-- **Sažetak** (do 1 str.) + **Ključne riječi** (3–5) — prazni.
-- **Title / Summary / Keywords** (engleski) — prazni.
-- **Ostali prilozi i dokumentacija** — prazno; treba Dodatak A (poveznica na repozitorij
-  `Private-Endgame`, popis priloženih datoteka: konfiguracije, `.onnx` modeli u `Assets/Models/5M/`).
-- **Uvod, broj poglavlja** — „Rad je podijeljen na sedam poglavlja" (odl. 115); stvarno stanje je
-  6 + Zaključak. Ispravi zajedno s A18, kad struktura bude konačna.
-
-Sav materijal za ove dijelove već postoji u `Theory.md` §§11–15 i u poglavlju 6 samog rada — riječ je
-o sažimanju, ne o novom istraživanju.
+1. **Ponavljanja** (§2) — najveći učinak, uglavnom brisanje, usput rješava prazne jednadžbe i
+   pokvarene upute.
+2. **Uvod** (§3).
+3. **Atribucija** (§4).
+4. Brojčane i formalne ispravke (§5).
+5. Preostale slike (§6).
+6. Zaključak, Sažetak, Dodatak A (§7).
