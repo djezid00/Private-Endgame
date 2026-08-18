@@ -5,6 +5,51 @@ Each entry is one working session. Newest at the top.
 
 ---
 
+## 2026-08-18 (cont.) — Phase B resumed: rebuild + obstacle smoke gate PASSED
+
+**Experiments resume.** User declared the write-up satisfactory for now and chose to run Phase B.
+New branch **`feat/obstacles-phase-b`** off `docs/thesis-completion-guide` (which already carries all
+obstacle code incl. the `ca64ed0` RNG fix). `98b9ab6` commits Unity's `preloadedAssets: []` churn so
+the tree was clean before building.
+
+**The stale-binary gate was real, not precautionary.** `Build/…/Assembly-CSharp.dll` was dated
+**2026-07-07 21:46** while the RNG fix `ca64ed0` landed **2026-07-10 12:29** — the binary predated the
+fix, so Phase B layouts would still have been seeded from wall-clock `Environment.TickCount`.
+Rebuilt (Assembly-CSharp.dll, `level0`, `globalgamemanagers` all 2026-08-18 21:09; the `.exe` keeps
+its old date, which is expected — it is only the launcher stub).
+
+**Run-id collision, not a failure:** the first launch aborted because `results/ObsSmoke_01/` exists
+from Jul 7. Kept (it is the provenance record for Phase A's nine 5M runs); re-ran as `ObsSmoke_02`,
+then `ObsSmoke_03` at the same seed as a determinism check.
+
+**Gate: all 4 criteria PASS.**
+1. `[ObstacleManager] num_obstacles=4, layout=random` present in both Player logs, alongside
+   `[TagAgent] distance_shaping_coef=0,00, shaping_gamma=0,990` (sparse arm confirmed).
+2. Both behaviours completed 50k with `.onnx`; **Baseline Loss finite** (Chaser 0.0205 / Runner
+   0.0214 ⇒ genuine MA-POCA); **zero non-finite values across all 20 scalar tags**; no Unity errors.
+3. `Environment/Catch` 0.069 / 0.047, `TimeToCatch` 519 / 572 — catches remain possible among pillars.
+4. Episode length ~393 decision steps (cap 400), Group Reward −0.92 / +0.96 — normal untrained
+   baseline; catch ~5–11 % matches the documented ~5–15 % random baseline. No cross-arena anomalies.
+
+**RNG fix VERIFIED.** `ObsSmoke_02` and `ObsSmoke_03` (same seed, separate launches) are **identical
+to four decimals on every metric including the losses** (Baseline Loss 0.0205, Catch 0.1143, Episode
+Length 393.8030). Under the pre-fix wall-clock seeding two launches could not have matched, so Phase
+B's per-episode layouts are now genuinely `--seed`-reproducible. `ObsSmoke_01` (July binary, same
+config/seed) differs (Baseline Loss 0.0200, Catch 0.1132, Ep.Len 387.58), consistent with the old
+seeding — recorded as *suggestive, not conclusive*, since the code change could also have shifted RNG
+stream ordering; the 02≡03 identity is the airtight half.
+
+Non-anomaly worth not re-investigating: Runner logs to step 60000 while Chaser stops at 50000 —
+self-play `team_change`/`swap_steps` boundaries differ per behaviour. `ObsSmoke_01` shows it too.
+
+**Next:** `experimentsun_obs_phaseB.bat` — 9 × 5M, sparse, `num_obstacles: 4`,
+`obstacle_layout: 1` (γ=0.8 ×3 seeds, 0.9/0.95/0.99 ×1, 0.995 ×3 seeds), ~36–42 h unattended.
+No `POCA_sparse_obsR_*` results exist ⇒ clean start, no `--resume`. Then analysis into Theory §14
+against the pre-registered RQ-C prediction (randomized layouts learn slower and end lower than
+fixed at matched γ).
+
+---
+
 ## 2026-08-18 — Duplication + attribution audit of the docx; Theory.md figure block rebuilt
 
 **Docx rescan** (4.9 MB, 784 body elements, 32 figures, 11 tables, 3 code listings — up from 725
