@@ -1,20 +1,23 @@
 @echo off
 setlocal
 REM ============================================================================
-REM  PHASE B (RQ-C) - sparse, gamma 0.99 ONLY, matched seeds. 5 runs (~22 h).
+REM  PHASE B (RQ-C) - sparse, gamma 0.99, 4 RANDOMIZED pillars. 3 runs (~13 h).
 REM
 REM  Supersedes run_obs_phaseB.bat (the 9-run gamma sweep at randomized layouts).
 REM  Phase A already settled gamma=0.99 as the operating point, so this tests the
 REM  LAYOUT effect at that point instead of re-sweeping a closed question.
 REM
-REM  Arms (3 vs 3 at gamma=0.99):
-REM    obsR s1/s2/s3  - 4 pillars RANDOMIZED per episode  (new)
-REM    obsF s2/s3     - 4 pillars FIXED                   (backfill; s1 ran in Phase A)
-REM  The obsF backfill exists because Phase A ran gamma=0.99 with ONE seed; without
-REM  it the fixed-vs-random contrast would be 3-vs-1 and seed noise could swallow
-REM  the effect (cf. Phase A gamma=0.995, where 1 of 3 seeds collapsed).
+REM  Compare against the Phase A FIXED-layout plateau, already established by four
+REM  runs at gamma >= 0.95 (catch 0.99-1.00, ELO gap 1211-1257):
+REM    obsF_g095_s1 1.00/1211   obsF_g099_s1 0.99/1249
+REM    obsF_g0995_s2 1.00/1253  obsF_g0995_s3 1.00/1257
+REM  g099_s1 sits mid-cluster, so it is not an outlier and needs no backfill.
 REM
-REM  Random arm runs FIRST: if the batch is interrupted, the new arm is complete.
+REM  CONTINGENCY (do NOT run upfront): if the random arm lands marginal, i.e.
+REM  overlapping 0.99-1.00 rather than clearly below, only then add fixed seeds
+REM  s2/s3 at gamma=0.99 to firm up that single-seed cell (~9 h):
+REM    mlagents-learn %CFG%\TagMApoca_sparse_obsF_g099.yaml --env="%ENV%" --no-graphics --run-id=POCA_sparse_obsF_g099_s2 --seed 2
+REM    mlagents-learn %CFG%\TagMApoca_sparse_obsF_g099.yaml --env="%ENV%" --no-graphics --run-id=POCA_sparse_obsF_g099_s3 --seed 3
 REM
 REM  PREREQ: binary rebuilt after ca64ed0 + TagMApoca_obs_smoke gate PASSED
 REM          (ObsSmoke_02 == ObsSmoke_03 confirmed --seed reproducibility).
@@ -36,16 +39,11 @@ if not exist "%ENV%" (
 )
 if not exist batch_logs mkdir batch_logs
 
-echo Starting Phase B (gamma 0.99, matched seeds) at %DATE% %TIME%
+echo Starting Phase B (gamma 0.99, randomized pillars) at %DATE% %TIME%
 
-REM --- RANDOM layout arm (the new science) ------------------------------------
 mlagents-learn %CFG%\TagMApoca_sparse_obsR_g099.yaml --env="%ENV%" --no-graphics --run-id=POCA_sparse_obsR_g099_s1 --seed 1 > batch_logs\POCA_sparse_obsR_g099_s1.log 2>&1
 mlagents-learn %CFG%\TagMApoca_sparse_obsR_g099.yaml --env="%ENV%" --no-graphics --run-id=POCA_sparse_obsR_g099_s2 --seed 2 > batch_logs\POCA_sparse_obsR_g099_s2.log 2>&1
 mlagents-learn %CFG%\TagMApoca_sparse_obsR_g099.yaml --env="%ENV%" --no-graphics --run-id=POCA_sparse_obsR_g099_s3 --seed 3 > batch_logs\POCA_sparse_obsR_g099_s3.log 2>&1
-
-REM --- FIXED layout backfill (s1 already exists from Phase A) ------------------
-mlagents-learn %CFG%\TagMApoca_sparse_obsF_g099.yaml --env="%ENV%" --no-graphics --run-id=POCA_sparse_obsF_g099_s2 --seed 2 > batch_logs\POCA_sparse_obsF_g099_s2.log 2>&1
-mlagents-learn %CFG%\TagMApoca_sparse_obsF_g099.yaml --env="%ENV%" --no-graphics --run-id=POCA_sparse_obsF_g099_s3 --seed 3 > batch_logs\POCA_sparse_obsF_g099_s3.log 2>&1
 
 echo Phase B complete at %DATE% %TIME%
 endlocal

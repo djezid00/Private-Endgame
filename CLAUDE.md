@@ -228,12 +228,12 @@ Albert also had a couple moments of throwing the cubes at Kai and spinning with 
 > - **SPLIT INTO PHASE B + PHASE C (2026-08-19).** The 9-run γ sweep at randomized layouts
 >   (`run_obs_phaseB.bat`) was never launched and is SUPERSEDED — Phase A already settled γ=0.99,
 >   so re-sweeping γ spends 9 runs on a closed question.
-> - **PHASE B = 1v1, γ=0.99, sparse, RANDOMIZED pillars — 5 runs, ~22 h.**
->   Batch `experiments/run_obs_phaseB_g099.bat`. Arms: `obsR_g099` s1/s2/s3 (random, new) +
->   `obsF_g099` s2/s3 (fixed backfill). **The backfill matters:** Phase A ran γ=0.99 with only
->   ONE seed, so without it the fixed-vs-random contrast is 3-vs-1 and seed noise could swallow
->   the effect — cf. Phase A γ=0.995, where 1 of 3 seeds collapsed to ~0 catch for 3.5M steps.
->   Random arm runs first so an interrupted batch still yields the complete new arm.
+> - **PHASE B = 1v1, γ=0.99, sparse, RANDOMIZED pillars — 3 runs, ~13 h.**
+>   Batch `experiments/run_obs_phaseB_g099.bat`: `obsR_g099` s1/s2/s3. **No fixed-layout runs** —
+>   Phase A's fixed plateau is already established by FOUR runs at γ≥0.95 (catch 0.99–1.00, ELO gap
+>   1211–1257), and `obsF_g099_s1` sits mid-cluster, so it is not an outlier needing a backfill.
+>   Contingency only: if the random arm lands *marginal* (overlapping 0.99–1.00 rather than clearly
+>   below), then add `obsF_g099` s2/s3 (~9 h) — the command is in the batch header.
 > - **Phase A γ ranking (settles "which γ is best"):** catch is tied within noise across
 >   γ=0.95 (1.00), 0.99 (0.99) and 0.995's good seeds; **γ=0.99 wins on seed-mean ELO gap
 >   (1249, best in sweep) and on learning speed** (catch ≈ 1.0 by ~1.3M). γ=0.995 is the risky

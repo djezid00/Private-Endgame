@@ -24,20 +24,19 @@ s1 collapsed to 395. So "γ=0.99 is best" is correct as an operating point and n
 the thesis. (The `VODIC` γ-peak note is narrower than I first claimed: it only says the value
 **1.00** appears in the γ=0.95 row, not that 0.95 is the better setting.)
 
-**New batch `experiments/run_obs_phaseB_g099.bat` — 5 runs, ~22 h** (Phase A measured ~4.3 h/run:
-g0995 seeds finished 14:43 → 19:03 → 23:25 on Jul 9):
+**Batch `experiments/run_obs_phaseB_g099.bat` — 3 runs, ~13 h** (Phase A measured ~4.3 h/run:
+g0995 seeds finished 14:43 → 19:03 → 23:25 on Jul 9): `POCA_sparse_obsR_g099_s1/s2/s3`, randomized
+pillars.
 
-| Arm | Run-ids | Layout |
-|---|---|---|
-| new | `POCA_sparse_obsR_g099_s1/s2/s3` | randomized per episode |
-| backfill | `POCA_sparse_obsF_g099_s2/s3` | fixed (`s1` ran in Phase A) |
-
-**Why the fixed backfill is not optional:** Phase A ran γ=0.99 with **one** seed — the 3-seed bands
-were only at γ=0.8 and γ=0.995. Without the backfill the headline fixed-vs-random contrast is
-**3-vs-1**, and Phase A already showed how severe seed noise can be here (γ=0.995 s1 sat at ~0 catch
-for 3.5M steps while its siblings were the best runs in the sweep). The backfill also retroactively
-strengthens the γ=0.99 cell the thesis leans on most. Random arm is ordered first so an interrupted
-batch still yields a complete new arm.
+**Fixed-layout backfill proposed, then DROPPED — the user was right.** I first argued for 2 extra
+`obsF_g099` seeds because Phase A ran that cell with n=1. That reasoning looked at the wrong thing:
+Phase A's fixed-layout ceiling at high γ is established by **four** runs, not one — γ=0.95 s1
+(1.00/1211), γ=0.99 s1 (0.99/1249), γ=0.995 s2 (1.00/1253), γ=0.995 s3 (1.00/1257) — all on the
+γ≥0.95 plateau Phase A itself identified, so they act as pseudo-replicates of the fixed condition.
+`g099_s1` sits **mid-cluster**, i.e. it is not the lucky/unlucky draw the backfill was insuring
+against. Spending 9 h re-measuring an agreed ceiling is the same waste that motivated dropping the
+γ sweep. **Backfill is now a CONTINGENCY:** run it only if the random arm lands marginal
+(overlapping 0.99–1.00) rather than clearly below; command preserved in the batch header.
 
 **Readiness verified before writing the batch:** working tree clean with last `Assets/` commit
 `ca64ed0` (Jul 10) vs binary built 2026-08-18 21:09 ⇒ no code drift; both configs present with
