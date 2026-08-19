@@ -5,6 +5,51 @@ Each entry is one working session. Newest at the top.
 
 ---
 
+## 2026-08-19 — Phase B/C SPLIT; Phase B batch written (γ=0.99, matched seeds, 5 runs)
+
+**Scope decision (user).** The multi-agent work is split out as its own phase:
+- **Phase B** = 1v1, γ=0.99, sparse, **randomized** pillars — answers the original RQ-C layout
+  question at the operating point.
+- **Phase C** = the multi-agent phase (2v2 / 2v3 / 3v3, ≤8 agents). All Phase C design decisions
+  locked in the 08-18 brainstorm carry over untouched.
+
+The 9-run γ sweep at randomized layouts was dropped for compute reasons (~40 h unavailable) and
+because Phase A already settled γ=0.99. `run_obs_phaseB.bat` remains in the repo but is superseded.
+
+**γ ranking clarified (I had muddled two columns).** Phase A's catch rates are tied within noise
+across γ=0.95 (1.00), γ=0.99 (0.99) and γ=0.995's two good seeds (1.00) — the 0.95-vs-0.99 gap is
+0.01 between two single seeds. **γ=0.99 wins on seed-mean ELO gap (1249, best in the sweep) and on
+learning speed** (catch ≈ 1.0 by ~1.3M, per Fig. 10). γ=0.995's 3-seed mean gap is only 968 because
+s1 collapsed to 395. So "γ=0.99 is best" is correct as an operating point and needs no rewording in
+the thesis. (The `VODIC` γ-peak note is narrower than I first claimed: it only says the value
+**1.00** appears in the γ=0.95 row, not that 0.95 is the better setting.)
+
+**New batch `experiments/run_obs_phaseB_g099.bat` — 5 runs, ~22 h** (Phase A measured ~4.3 h/run:
+g0995 seeds finished 14:43 → 19:03 → 23:25 on Jul 9):
+
+| Arm | Run-ids | Layout |
+|---|---|---|
+| new | `POCA_sparse_obsR_g099_s1/s2/s3` | randomized per episode |
+| backfill | `POCA_sparse_obsF_g099_s2/s3` | fixed (`s1` ran in Phase A) |
+
+**Why the fixed backfill is not optional:** Phase A ran γ=0.99 with **one** seed — the 3-seed bands
+were only at γ=0.8 and γ=0.995. Without the backfill the headline fixed-vs-random contrast is
+**3-vs-1**, and Phase A already showed how severe seed noise can be here (γ=0.995 s1 sat at ~0 catch
+for 3.5M steps while its siblings were the best runs in the sweep). The backfill also retroactively
+strengthens the γ=0.99 cell the thesis leans on most. Random arm is ordered first so an interrupted
+batch still yields a complete new arm.
+
+**Readiness verified before writing the batch:** working tree clean with last `Assets/` commit
+`ca64ed0` (Jul 10) vs binary built 2026-08-18 21:09 ⇒ no code drift; both configs present with
+matching trainer γ and `obstacle_layout: 1`/`0`; all 5 run-ids free (no `--resume`/`--force`);
+74 GB free vs Phase A's 2.3 GB for 9 runs.
+
+**Next:** launch the batch → analysis vs the pre-registered RQ-C prediction (Theory §14: randomized
+layouts learn slower and end lower than fixed at matched γ) → then resume the Phase C brainstorm at
+Section 2 (reward structure with teams).
+
+---
+
 ## 2026-08-18 (cont. 2) — Phase B REDESIGNED as a multi-agent phase (brainstorm IN PROGRESS)
 
 **Status: design paused mid-brainstorm, nothing implemented, nothing launched.** The original

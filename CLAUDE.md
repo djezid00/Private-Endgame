@@ -225,15 +225,25 @@ Albert also had a couple moments of throwing the cubes at Kai and spinning with 
 >   layout=random` logged, finite Baseline Loss, zero non-finite values across 20 tags, Catch 0.069,
 >   Episode Length ~393. **RNG fix verified:** `ObsSmoke_02` ≡ `ObsSmoke_03` (same seed, separate
 >   launches) identical to 4 decimals on every metric — impossible under the old wall-clock seeding.
-> - **The 9-run γ sweep at randomized layouts (`run_obs_phaseB.bat`) was never launched and is
->   SUPERSEDED.** Phase A already settled γ=0.99 as the operating point, so re-sweeping γ spends
->   9 runs on a closed question.
-> - **New Phase B = γ=0.99, sparse, randomized pillars, + TEAM configurations** (2v2 / 3v3 / 3v2,
->   up to 8 agents). Rationale: at 1v1 the MA-POCA counterfactual baseline is **numerically inert**
+> - **SPLIT INTO PHASE B + PHASE C (2026-08-19).** The 9-run γ sweep at randomized layouts
+>   (`run_obs_phaseB.bat`) was never launched and is SUPERSEDED — Phase A already settled γ=0.99,
+>   so re-sweeping γ spends 9 runs on a closed question.
+> - **PHASE B = 1v1, γ=0.99, sparse, RANDOMIZED pillars — 5 runs, ~22 h.**
+>   Batch `experiments/run_obs_phaseB_g099.bat`. Arms: `obsR_g099` s1/s2/s3 (random, new) +
+>   `obsF_g099` s2/s3 (fixed backfill). **The backfill matters:** Phase A ran γ=0.99 with only
+>   ONE seed, so without it the fixed-vs-random contrast is 3-vs-1 and seed noise could swallow
+>   the effect — cf. Phase A γ=0.995, where 1 of 3 seeds collapsed to ~0 catch for 3.5M steps.
+>   Random arm runs first so an interrupted batch still yields the complete new arm.
+> - **Phase A γ ranking (settles "which γ is best"):** catch is tied within noise across
+>   γ=0.95 (1.00), 0.99 (0.99) and 0.995's good seeds; **γ=0.99 wins on seed-mean ELO gap
+>   (1249, best in sweep) and on learning speed** (catch ≈ 1.0 by ~1.3M). γ=0.995 is the risky
+>   setting (3-seed mean gap 968, dragged down by s1's 395). γ=0.99 is the operating point.
+> - **PHASE C = the multi-agent phase** (2v2 / 2v3 / 3v3, up to 8 agents), γ=0.99, randomized
+>   pillars. Rationale: at 1v1 the MA-POCA counterfactual baseline is **numerically inert**
 >   (`Baseline Loss` 0.0205 ≈ `Value Loss` 0.0204), which is why §13 found MA-POCA ≈ PPO. Teams are
->   the condition under which the algorithm is supposed to separate — so this phase answers
+>   the condition under which the algorithm is supposed to separate — so Phase C answers
 >   "why MA-POCA at all?", which the thesis currently cannot.
-> - **Design brainstorm IN PROGRESS — paused at step 5 of `superpowers:brainstorming`.** Locked:
+> - **Phase C design brainstorm PAUSED at step 5 of `superpowers:brainstorming`.** Locked:
 >   (1) tagged runner deactivates, episode continues ⇒ exercises **posthumous credit assignment**;
 >   (2) self in `VectorSensor` + others in **`BufferSensorComponent`** (attention, permutation-
 >   invariant, one behavior spec across all team sizes); (3) **Approach A** — generalize existing
