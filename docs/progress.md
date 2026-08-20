@@ -55,6 +55,16 @@ annotated with the 2026-08-19 scope amendment. §15 follow-up list re-ordered: P
 done, team expansion promoted to the active phase with its locked design decisions, and a new
 item 7 (γ × layout interaction) recording what the reduced scope gave up.
 
+**Croatian draft written: `docs/NACRT_Faza_B_poglavlja.md`.** Docx rescanned (1066 paragraphs;
+figures end at `Slika 6.23`, tables at `Tablica 6.6`, so the draft continues from `Slika 6.24` /
+`Tablica 6.7`). Contains: new **5.7 Faza B: nasumične prepreke** (design + why γ=0.99 only + the
+admitted γ×layout cost + the determinism check), new **6.6 Rasprava rezultata – FAZA B** with
+6.6.1–6.6.4 (comparison, findings vs prediction, what it closes, caveats), both result tables
+pre-filled, and 6 marked `[MJESTO ZA SLIKU …]` placeholders naming the exact TensorBoard tag and
+runs to capture. **Also two corrections to existing prose:** ¶652 still says *"Faza B nije provedena
+u okviru ovog rada"* and ¶952 says Phase B *"ispitat će"* — both now contradict the results; ready
+replacement text is in section A of the draft.
+
 **Next:** Phase B figures do not exist yet (`plot_gamma.py` covers Phase A only) — a fixed-vs-random
 contrast plot and the three catch-rate curves are outstanding. Then resume the Phase C brainstorm at
 Section 2 (reward structure with teams).
