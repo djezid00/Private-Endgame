@@ -535,11 +535,36 @@ using Unity.MLAgents;
 /// </summary>
 public class TeamManager : MonoBehaviour
 {
-    [Header("Authored agents (drag all 4 chasers and all 4 runners)")]
+    [Header("Authored agents (auto-collected from children if left empty)")]
     public TagAgent[] chasers;
     public TagAgent[] runners;
 
     private static bool paramsLogged = false;
+
+    /// <summary>
+    /// Fallback wiring, mirroring ObstacleManager.Awake(). If the inspector arrays were not
+    /// populated by hand, collect every TagAgent under this arena and split by teamId.
+    /// Without this, an unwired prefab throws NullReferenceException on EVERY episode reset
+    /// in a headless run — with 16 arenas that is an unreadable log and a dead training job.
+    /// includeInactive is essential: agents 2..4 are authored inactive by design.
+    /// </summary>
+    private void Awake()
+    {
+        if ((chasers != null && chasers.Length > 0) && (runners != null && runners.Length > 0))
+            return;
+
+        var found = GetComponentsInChildren<TagAgent>(true);
+        var c = new System.Collections.Generic.List<TagAgent>();
+        var r = new System.Collections.Generic.List<TagAgent>();
+        foreach (var a in found) (a.teamId == 0 ? c : r).Add(a);
+        chasers = c.ToArray();
+        runners = r.ToArray();
+
+        if (chasers.Length == 0 || runners.Length == 0)
+            Debug.LogError($"[TeamManager] on '{name}': found {chasers.Length} chasers and " +
+                           $"{runners.Length} runners. Both must be non-empty — check that the " +
+                           $"TagArena prefab contains agents with teamId 0 and 1.");
+    }
 
     /// <summary>Chasers active this episode. Valid after ApplyTeamSizes().</summary>
     public int ActiveChasers { get; private set; } = 1;
