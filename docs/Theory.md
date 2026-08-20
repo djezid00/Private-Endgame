@@ -831,17 +831,146 @@ only runner that holds above 1000.*
   different populations and are not interconvertible by the ×5 decision period alone.
 - ELO is self-play-relative (divergence from 1200), not calibrated across runs; catch rate and
   episode length carry the cross-run comparisons.
-- All Phase A runs share the *same* fixed layout — layout-specific strategies (e.g. memorized
-  patrol routes) cannot be excluded until Phase B's per-episode randomization.
+- ~~All Phase A runs share the *same* fixed layout — layout-specific strategies (e.g. memorized
+  patrol routes) cannot be excluded until Phase B's per-episode randomization.~~
+  **RESOLVED 2026-08-20 — see the Phase B section below.** Randomizing the pillar layout every
+  episode changed nothing measurable, so memorized patrol routes were never what Phase A measured.
 
 ### Decision gate → Phase B
 
 Pre-registered gate criteria: **a resolvable trend across γ** — met (myopia tax at the low end
 with 3-seed agreement; instability at the high end; interior monotone). **Fallback check** (γ=0.99
 chaser still at random baseline ⇒ rerun with 2 pillars) — not triggered (0.99 catch). **GO for
-Phase B** (same 9-run matrix, `obstacle_layout: 1`), which asks: does per-episode layout
-randomization finally give the runner leverage (generalization cost), and does the γ-curve keep
-its shape when memorizing a fixed layout is impossible?
+Phase B** (`obstacle_layout: 1`), which asks: does per-episode layout randomization finally give
+the runner leverage (generalization cost)?
+
+> **Scope amended 2026-08-19.** The gate originally specified the *same 9-run γ matrix* at
+> randomized layouts. That was cut to **3 runs at γ=0.99 only**: Phase A had already settled
+> γ=0.99 as the operating point, so re-sweeping γ spends 9 runs (~40 h) re-answering a closed
+> question. The cost is the **γ × layout interaction**, which this project therefore does not
+> measure — recorded as future work in §15. The second half of the gate's question ("does the
+> γ-curve keep its shape when memorizing a fixed layout is impossible?") is consequently
+> **unanswered by design**, not by omission.
+
+### Phase B results — randomized layouts at γ=0.99 (run 2026-08-19/20, 3 × 5M; written 2026-08-20)
+
+All three runs (`POCA_sparse_obsR_g099_s{1,2,3}`) completed 5M steps/behavior and exported both
+`.onnx` files. **Validity checks:** every player log contains `[ObstacleManager] num_obstacles=4,
+layout=random` and `[TagAgent] distance_shaping_coef=0.00, shaping_gamma=0.990`; zero Unity errors;
+**zero non-finite values across all scalar tags in all three runs**. The binary was rebuilt after
+`ca64ed0` and cleared the `TagMApoca_obs_smoke` gate, with `ObsSmoke_02` ≡ `ObsSmoke_03` (same seed,
+separate launches) identical to four decimals — so these layouts are genuinely `--seed`-reproducible.
+Values below are means of the last 5 TensorBoard points.
+
+| γ=0.99 random (seed) | Catch rate | Chaser ELO | Runner ELO | ELO gap | Ep. length | TimeToCatch | Chaser GroupR |
+|---|---|---|---|---|---|---|---|
+| s1 | 0.999 | 1958 | 680 | 1277 | 46.7 | 117 | +1.437 |
+| s2 | 0.999 | 1850 | 607 | 1243 | 45.2 | 114 | +1.440 |
+| s3 | 1.000 | 1945 | 695 | 1250 | 49.2 | 125 | +1.436 |
+| **mean** | **0.999** | **1918** | **661** | **1257** | **47.1** | **119** | **+1.438** |
+
+Against the two reference conditions (`→ 0.95` = steps for a 3-point trailing mean of catch rate to
+reach 0.95, i.e. learning speed):
+
+| Condition | n | Catch (range) | ELO gap (range) | Ep. length | → 0.95 |
+|---|---|---|---|---|---|
+| Open arena, no obstacles (§12) | 3 | 0.994 (0.018) | 1218 (54) | 53.7 | 1.23M |
+| Fixed pillars, γ ≥ 0.95 (Phase A) | 4 | 0.998 (0.005) | 1242 (46) | 47.9 | 1.12M |
+| **Random pillars, γ = 0.99 (Phase B)** | 3 | **0.999 (0.001)** | **1257 (34)** | **47.1** | **0.97M** |
+
+Matched-γ contrast — Phase B (n=3) vs `POCA_sparse_obsF_g099_s1` (n=1), the only strictly
+like-for-like comparison: catch 0.999 vs 0.995; ELO gap 1257 vs 1249; episode length 47.1 vs 50.0;
+TimeToCatch 118.8 vs 118.3; → 0.95 at 0.97M vs 0.90M.
+
+#### Findings vs the pre-registered RQ-C expectation
+
+The prediction, written before any obstacle run: *"with 4 fixed pillars the sparse γ=0.99 chaser
+still clearly beats the runner but below the open-arena ceiling; **randomized layouts learn slower
+and end lower than fixed at matched γ**."*
+
+1. **"Randomized layouts end lower than fixed" — FALSIFIED.** Every endpoint metric matches or
+   marginally exceeds the fixed arm, and all differences sit inside the seed ranges. The runner
+   gained no leverage whatsoever: its ELO (661) and the chaser's Group Reward (+1.438) are
+   indistinguishable from the fixed γ=0.99 cell (660, +1.422).
+2. **"Randomized layouts learn slower" — FALSIFIED.** Reaching 0.95 catch took 0.97M steps under
+   randomization vs 0.90M for fixed γ=0.99 — a difference well inside the Phase B seed range
+   (0.80M–1.20M). Against the pooled fixed group it is nominally *faster* (0.97M vs 1.12M), but
+   that group mixes γ = 0.95/0.99/0.995 and γ governs learning speed, so that contrast is
+   confounded and is **not** claimed as a speed-up.
+3. **The generalization cost predicted for randomization does not exist at this difficulty.**
+   Per-episode randomization removes any possibility of memorizing pillar positions, yet costs
+   the chaser nothing. Combined with finding 4, the natural reading is that the chaser's policy
+   was **reactive navigation around whatever cover it perceives**, not a layout-specific plan —
+   which the raycast observations plus a ~100-decision horizon are evidently sufficient to support.
+4. **Randomization did not destabilize training — the opposite.** Phase B has the **tightest seed
+   spread of any condition in this project** (catch range 0.001, ELO-gap range 34), against
+   0.005/46 for fixed and 0.018/54 for the open arena, and against γ=0.995's outright bimodal
+   collapse. Per-episode layout variation appears to act as a mild regulariser on the self-play
+   arms race rather than as added noise.
+
+#### What Phase B closes, and what it does not
+
+**Closes:** Phase A's headline negative result — *fixed cover costs the chaser almost nothing at
+γ ≥ 0.95* — carried an explicit caveat that memorized patrol routes could not be excluded. They are
+now excluded. The finding is upgraded from provisional to established: **in this arena, at this
+difficulty, cover does not help the evader, whether or not the evader's cover moves.**
+
+**Does not close:** the γ × layout interaction (Phase B ran one γ by design), and any claim that
+obstacles are *irrelevant* rather than *not-helpful-to-the-runner*.
+
+#### Caveats (for honest reporting)
+
+- **Ceiling effect — the dominant limitation.** Catch rate is ≈ 1.0 in all three conditions, so the
+  primary metric has little power to resolve small differences. The defensible claim is "no
+  **detectable** effect of layout randomization", not "no effect". A harder task (more pillars,
+  faster runner, larger arena) would be needed to give the comparison real resolution.
+- **ELO must not carry the cross-condition ordering.** Per §14's standing caveat, ELO is
+  self-play-relative and uncalibrated across runs. The apparent 1218 → 1242 → 1257 progression from
+  open → fixed → random must **not** be read as "obstacles help the chaser"; catch and episode
+  length carry cross-run comparisons, and both are at ceiling or confounded here.
+- The open-arena episode-length mean (53.7) is inflated by `POCA_sparse_s2` (77.5 steps, catch
+  0.982) — a single weaker seed. Excluding it the open arena is *faster* than either obstacle
+  condition, which is why no episode-length claim is made across those conditions either.
+- The fixed comparison group pools γ = 0.95/0.99/0.995 to reach n=4; the strictly matched-γ fixed
+  cell remains **n=1**. A backfill of `obsF_g099` s2/s3 was considered and deliberately not run:
+  the four fixed runs at γ ≥ 0.95 agree to within 0.005 catch and 46 ELO, and `g099_s1` sits
+  mid-cluster, so it is not a suspect draw. Had Phase B landed marginal, that backfill was the
+  pre-agreed contingency.
+- Single environment geometry throughout: one arena size, 4 pillars, one pillar scale, one
+  obstacle count. "Cover does not help the evader" is a statement about *this* configuration.
+- **MA-POCA's counterfactual baseline remains numerically inert**: `Losses/Baseline Loss` /
+  `Losses/Value Loss` = 1.0017 / 1.0052 / 1.0062 across the three seeds. Obstacles and layout
+  randomization do not change what §13 found — at group size 1 the baseline has no teammate to
+  condition on, so **none of this project's 1v1 results can distinguish MA-POCA from PPO**. This is
+  the direct motivation for Phase C.
+
+### Conclusion — the obstacle programme (written 2026-08-20)
+
+Across the probes, Phase A and Phase B, the obstacle programme produced one confirmed prediction and
+three falsified ones, which is a healthier ratio than it sounds:
+
+| Pre-registered claim | Verdict |
+|---|---|
+| RQ-B: low γ rescues the shaped farming trap | **Falsified** — catch stays ≈ 0.01 at γ = 0.8/0.9; harvest scales 1:8:19 ≈ the predicted 1:10:20 |
+| RQ-A: catch/ELO rise with γ to ≈ 0.99, then plateau or dip | **Confirmed**, with the dip's mechanism corrected to *instability*, not decline |
+| RQ-C: fixed cover pushes the chaser below the open-arena ceiling | **Falsified** — cover costs ≈ nothing at γ ≥ 0.95 |
+| RQ-C: randomized layouts learn slower and end lower than fixed | **Falsified** — indistinguishable on every metric; seed spread is the tightest observed |
+
+The thesis-level statement the obstacle programme supports is therefore **negative and specific**:
+*adding cover to this pursuit–evasion task — fixed or randomized — does not shift the competitive
+balance at the operating point γ = 0.99.* The evader's theoretical advantage from line-of-sight
+breaking does not materialise against a chaser with raycast perception and a ~100-decision horizon.
+Three falsified predictions out of four is the value of pre-registration: without expectations
+written before the runs, each result would be trivially narratable after the fact as "what we
+expected all along".
+
+What the programme could not address is the algorithm question. Every run in §§12–14 is 1v1, and the
+baseline/value ratio above (≈ 1.005) shows MA-POCA's distinguishing machinery idling throughout.
+That question moves to **Phase C** (teams, 2v2–3v3), where the counterfactual baseline finally has a
+teammate to condition on and posthumous credit assignment is exercised for the first time.
+
+*(Phase B figures are not yet generated — `experiments/analysis/plot_gamma.py` covers Phase A only.
+A fixed-vs-random contrast plot and the three catch-rate training curves remain to be produced.)*
 
 ---
 
@@ -849,12 +978,24 @@ its shape when memorizing a fixed layout is impossible?
 
 ### Research follow-ups (ordered by thesis value)
 
-1. **Phase B — randomized layouts (imminent, apparatus ready):** the direct test of layout
-   generalization; also the first run where the (now `--seed`-covered) per-episode layout stream
-   is exercised at scale.
-2. **Team expansion (2v1 / 2v2):** the phase where MA-POCA's counterfactual group credit does
-   real work (group size > 1) — the *genuine* MA-POCA-vs-PPO comparison deferred since §13. All
-   plumbing (groups, `RegisterAgent`, config blocks) was built for this from the start.
+> **List updated 2026-08-20.** Item 1 is **done** (Phase B, §14); item 2 is now the active phase
+> (Phase C); item 7 is new, created by Phase B's reduced scope.
+
+1. ~~**Phase B — randomized layouts:**~~ **DONE 2026-08-20** — results and conclusion in §14.
+   Outcome: no detectable effect of per-episode layout randomization; the pre-registered RQ-C
+   prediction was falsified on both halves.
+2. **Team expansion — PHASE C, the active phase (2v2 / 2v3 / 3v3, ≤ 8 agents):** the phase where
+   MA-POCA's counterfactual group credit does real work (group size > 1) — the *genuine*
+   MA-POCA-vs-PPO comparison deferred since §13, and now the project's highest-value open question,
+   since every 1v1 result carries a baseline/value ratio of ≈ 1.005 (the baseline idling). Design
+   decisions locked 2026-08-18: a tagged runner deactivates while the episode continues (exercising
+   **posthumous credit assignment** for the first time); self observations in `VectorSensor` with
+   all other agents in a `BufferSensorComponent` (attention, permutation-invariant, one behavior
+   spec across team sizes); existing classes generalized in place; run matrix deferred until a
+   throughput bake-off measures per-run cost. All plumbing (groups, `RegisterAgent`, config blocks)
+   was built for this from the start — but note the ML-Agents trap: `RegisterAgent` subscribes
+   `OnAgentDisabled += UnregisterAgent`, so deactivating an agent auto-unregisters it and every
+   agent must be **re-registered on each arena reset**, or the group silently drains to empty.
 3. **Obstacle-density sweep:** the `num_obstacles` knob already supports it — author more
    pillars and sweep {2, 4, 6, 8}. *Trap recorded in the final code review:* partial counts
    activate pillars in child order, which breaks mirror symmetry (e.g. `2` = both pillars on one
@@ -865,6 +1006,15 @@ its shape when memorizing a fixed layout is impossible?
    the γ=0.995 stall (needs ~6+ seeds).
 6. **Qualitative behavior taxonomy:** Editor-inference review of the Phase A/B brains (cover
    use, interception routes, patrol patterns) — the thesis's demo material.
+
+7. **γ × layout interaction (created by Phase B's reduced scope):** Phase B ran γ=0.99 only, so
+   the question the original decision gate posed — *does the γ-curve keep its shape when memorizing
+   a fixed layout is impossible?* — is unanswered. The five `TagMApoca_sparse_obsR_g*.yaml` configs
+   and `experiments/run_obs_phaseB.bat` already exist, so this is ~40 h of compute and no new code.
+   Low priority: Phase B found randomization changes nothing at the operating point, which makes a
+   large interaction effect at other γ values unlikely though not impossible — the plausible place
+   for one is γ=0.995, where fixed layouts were bimodal and randomization's apparent regularising
+   effect might damp the collapse.
 
 ### Engineering nice-to-haves (from the final whole-branch code review, 2026-07-10)
 

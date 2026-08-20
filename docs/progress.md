@@ -5,6 +5,62 @@ Each entry is one working session. Newest at the top.
 
 ---
 
+## 2026-08-20 — PHASE B COMPLETE: randomization changes nothing; RQ-C falsified on both halves
+
+**All 3 runs valid.** `POCA_sparse_obsR_g099_s{1,2,3}`, 5M steps/behavior each, both `.onnx`
+exported. Every player log shows `[ObstacleManager] num_obstacles=4, layout=random` +
+`shaping_gamma=0,990`, zero Unity errors, **zero non-finite values across all scalar tags**.
+
+| γ=0.99 random | Catch | Chaser ELO | Runner ELO | ELO gap | Ep. len | TimeToCatch | GroupR |
+|---|---|---|---|---|---|---|---|
+| s1 | 0.999 | 1958 | 680 | 1277 | 46.7 | 117 | +1.437 |
+| s2 | 0.999 | 1850 | 607 | 1243 | 45.2 | 114 | +1.440 |
+| s3 | 1.000 | 1945 | 695 | 1250 | 49.2 | 125 | +1.436 |
+| **mean** | **0.999** | 1918 | 661 | **1257** | **47.1** | 119 | **+1.438** |
+
+**Headline: the pre-registered RQ-C prediction ("randomized layouts learn slower and end lower than
+fixed at matched γ") is FALSIFIED on both halves.** Matched-γ vs `obsF_g099_s1`: catch 0.999 vs
+0.995, ELO gap 1257 vs 1249, ep. length 47.1 vs 50.0, TimeToCatch 118.8 vs 118.3, steps-to-0.95
+catch 0.97M vs 0.90M — every difference inside seed noise. The runner gained **no** leverage.
+
+**What this closes.** §14's standing caveat ("layout-specific strategies e.g. memorized patrol
+routes cannot be excluded until Phase B") is now RESOLVED and struck through in Theory. Phase A's
+negative result — fixed cover costs the chaser almost nothing at γ≥0.95 — is upgraded from
+provisional to **established**: the chaser was doing reactive navigation around perceived cover, not
+executing a memorized plan.
+
+**Unexpected secondary finding: randomization *stabilised* training.** Phase B has the tightest seed
+spread of any condition in the project (catch range 0.001, ELO-gap range 34) vs 0.005/46 for fixed
+and 0.018/54 for the open arena — and against γ=0.995's outright bimodal collapse. Per-episode
+layout variation reads as a mild regulariser on the self-play arms race, not as added noise.
+
+**The dominant caveat is a ceiling effect.** Catch ≈ 1.0 in all three conditions, so the primary
+metric cannot resolve small differences — the claim written up is "no **detectable** effect", not
+"no effect". Also explicitly guarded in Theory: the open → fixed → random ELO-gap progression
+(1218 → 1242 → 1257) must **not** be read as "obstacles help the chaser", since ELO is
+self-play-relative and uncalibrated across runs; and the open-arena episode-length mean is inflated
+by one weak seed (`POCA_sparse_s2`, 77.5 steps).
+
+**MA-POCA diagnostic reconfirmed:** `Baseline Loss / Value Loss` = 1.0017 / 1.0052 / 1.0062. The
+counterfactual baseline is still numerically inert at group size 1 even with obstacles ⇒ **no 1v1
+result in this project can distinguish MA-POCA from PPO.** This is now stated in Theory as the
+direct motivation for Phase C.
+
+**Theory.md updated** (dated headings as requested): new `### Phase B results — randomized layouts
+at γ=0.99 (run 2026-08-19/20, 3 × 5M; written 2026-08-20)` with per-seed table, 3-condition
+comparison, findings vs prediction, what-it-closes, and caveats; new
+`### Conclusion — the obstacle programme (written 2026-08-20)` scoring all four pre-registered
+claims (1 confirmed, 3 falsified) and handing the algorithm question to Phase C. Decision gate
+annotated with the 2026-08-19 scope amendment. §15 follow-up list re-ordered: Phase B struck as
+done, team expansion promoted to the active phase with its locked design decisions, and a new
+item 7 (γ × layout interaction) recording what the reduced scope gave up.
+
+**Next:** Phase B figures do not exist yet (`plot_gamma.py` covers Phase A only) — a fixed-vs-random
+contrast plot and the three catch-rate curves are outstanding. Then resume the Phase C brainstorm at
+Section 2 (reward structure with teams).
+
+---
+
 ## 2026-08-19 — Phase B/C SPLIT; Phase B batch written (γ=0.99, matched seeds, 5 runs)
 
 **Scope decision (user).** The multi-agent work is split out as its own phase:
