@@ -59,28 +59,28 @@ public static class TagReward
         return Mathf.Clamp01((float)stepCount / maxSteps) * 0.5f;
     }
 
-    /// <summary>Chaser group's share for catching ONE runner at stepCount.</summary>
+    /// <summary>Chaser group's share for catching ONE runner at stepCount. Range [1/numRunners, 1.5/numRunners].</summary>
     public static float CatchShareChaser(int stepCount, int maxSteps, int numRunners)
     {
         if (numRunners <= 0) return 0f;
         return (1f + TimeBonus(stepCount, maxSteps)) / numRunners;
     }
 
-    /// <summary>Runner group's share when ONE of its members is caught at stepCount.</summary>
+    /// <summary>Runner group's share when ONE of its members is caught at stepCount. Range [-1/numRunners, -0.5/numRunners].</summary>
     public static float CatchShareRunner(int stepCount, int maxSteps, int numRunners)
     {
         if (numRunners <= 0) return 0f;
         return (-1f + SurvivalBonus(stepCount, maxSteps)) / numRunners;
     }
 
-    /// <summary>Chaser group's share for ONE runner that survived to the timeout.</summary>
+    /// <summary>Chaser group's share for ONE runner that survived to the timeout. Equals -1/numRunners.</summary>
     public static float SurvivalShareChaser(int numRunners)
     {
         if (numRunners <= 0) return 0f;
         return -1f / numRunners;
     }
 
-    /// <summary>Runner group's share for ONE of its members surviving to the timeout.</summary>
+    /// <summary>Runner group's share for ONE of its members surviving to the timeout. Equals 1/numRunners.</summary>
     public static float SurvivalShareRunner(int numRunners)
     {
         if (numRunners <= 0) return 0f;

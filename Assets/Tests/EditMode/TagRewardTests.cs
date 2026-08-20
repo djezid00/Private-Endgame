@@ -101,6 +101,21 @@ public class TagRewardTests
     }
 
     [Test]
+    public void AllRunnersCaught_RunnerTotal_StaysOnUnitScale()
+    {
+        // Mirror of the chaser check: runner-side total for n catches must land in [-1, -0.5].
+        // (NOT the [-1, -1.5] a reader might assume by symmetry — see spec §4 note on the
+        // net +0.5/n asymmetry of the catch-bonus mechanics.)
+        foreach (int n in new[] { 1, 2, 3, 4 })
+        {
+            float total = 0f;
+            for (int i = 0; i < n; i++) total += TagReward.CatchShareRunner(500, 2000, n);
+            Assert.GreaterOrEqual(total, -1f - 1e-5f);
+            Assert.LessOrEqual(total, -0.5f + 1e-5f);
+        }
+    }
+
+    [Test]
     public void NoRunnersCaught_ChaserTotal_IsExactlyMinusOne()
     {
         foreach (int n in new[] { 1, 2, 3, 4 })
@@ -108,6 +123,17 @@ public class TagRewardTests
             float total = 0f;
             for (int i = 0; i < n; i++) total += TagReward.SurvivalShareChaser(n);
             Assert.AreEqual(-1f, total, 1e-5f);
+        }
+    }
+
+    [Test]
+    public void NoRunnersCaught_RunnerTotal_IsExactlyPlusOne()
+    {
+        foreach (int n in new[] { 1, 2, 3, 4 })
+        {
+            float total = 0f;
+            for (int i = 0; i < n; i++) total += TagReward.SurvivalShareRunner(n);
+            Assert.AreEqual(1f, total, 1e-5f);
         }
     }
 
@@ -130,5 +156,14 @@ public class TagRewardTests
     {
         Assert.AreEqual(0f, TagReward.CatchShareChaser(0, 2000, 0), 1e-6f);
         Assert.AreEqual(0f, TagReward.SurvivalShareChaser(0), 1e-6f);
+        Assert.AreEqual(0f, TagReward.CatchShareRunner(0, 2000, 0), 1e-6f);
+        Assert.AreEqual(0f, TagReward.SurvivalShareRunner(0), 1e-6f);
+    }
+
+    [Test]
+    public void Bonuses_GuardAgainstZeroMaxSteps()
+    {
+        Assert.AreEqual(0f, TagReward.TimeBonus(100, 0), 1e-6f);
+        Assert.AreEqual(0f, TagReward.SurvivalBonus(100, 0), 1e-6f);
     }
 }

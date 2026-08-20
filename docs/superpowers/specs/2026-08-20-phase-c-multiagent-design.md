@@ -161,6 +161,16 @@ Step rewards (unchanged, per-agent, unnormalized):
    timeout ∓1. Not merely equivalent in spirit; the same expression. The regression run therefore
    isolates the arena-loop refactor rather than testing new reward math.
 
+**The catch bonus is not zero-sum — this is intentional, inherited behaviour.** For a single catch
+event, `chaserShare + runnerShare = (tb+sb)/N_r`, and since `tb = (1−p)·0.5` and `sb = p·0.5` for the
+same progress `p`, `tb+sb ≡ 0.5` regardless of `p`. So every catch injects a net `+0.5/N_r` into the
+system rather than cancelling out. Consequently the runner-side "all caught" total is `[−1, −0.5]`,
+**not** the mirror image `[−1, −1.5]` that "scale preserved" (property 1) might suggest by analogy —
+the asymmetry lives entirely in the catch-bonus mechanics, not in the timeout case, which *is* a
+perfect mirror (chaser exactly `−1`, runner exactly `+1`). This is carried over unchanged from the
+pre-existing 1v1 formula and must be preserved as-is: altering `tb`/`sb` to force zero-sum would
+break the `N_r = 1` exact-reduction property above.
+
 **Rewarding before deactivation is deliberate.** A tagged runner receives its own outcome while
 still registered; what it misses is its *teammates'* later outcomes. If runner 1 is caught early
 while runners 2 and 3 survive, runner 1's trajectory says "I lost" while the team did well —
