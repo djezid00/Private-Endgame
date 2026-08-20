@@ -33,7 +33,26 @@ public class TagAgent : Agent
     // PRIVATE STATE
     // ─────────────────────────────────────────────
     private Rigidbody rb;
+
+    /// <summary>
+    /// This agent's Rigidbody, cached. Other agents read it every decision step when
+    /// building their BufferSensor entities; GetComponent there would cost tens of
+    /// thousands of native lookups per second at 8 agents x 16 arenas. Lazily resolved
+    /// because a teammate may be observed before its own Initialize() has run.
+    /// </summary>
+    public Rigidbody Body
+    {
+        get
+        {
+            if (rb == null) rb = GetComponent<Rigidbody>();
+            return rb;
+        }
+    }
+
     private BufferSensorComponent entitySensor;
+
+    // Reused per-entity observation buffer — see the note in CollectObservations.
+    private readonly float[] entityScratch = new float[10];
 
     // ─────────────────────────────────────────────
     // INITIALIZE — runs ONCE when the agent is first created
@@ -74,7 +93,7 @@ public class TagAgent : Agent
         if (opponent != null)
         {
             sensor.AddObservation(opponent.transform.localPosition - transform.localPosition);
-            sensor.AddObservation(opponent.GetComponent<Rigidbody>().linearVelocity);
+            sensor.AddObservation(opponent.Body.linearVelocity);
             sensor.AddObservation(opponent.transform.forward);
         }
         else
@@ -87,21 +106,32 @@ public class TagAgent : Agent
         // TOTAL vector: 18 floats — unchanged from 1v1.
 
         // ── ALL OTHER ACTIVE AGENTS (BufferSensor, 10 floats each) ───────────
+        // entityScratch is reused across every iteration below rather than allocating a
+        // fresh float[10] per entity: BufferSensor.AppendObservation copies the array's
+        // contents into its own internal buffer synchronously before returning, so the
+        // caller's array can be safely overwritten on the next iteration. Allocating here
+        // instead would cost roughly 9k Gen0 allocations/sec scene-wide (8 agents x up to
+        // 7 others x 16 arenas x 10 decisions/sec) landing straight inside env_step, which
+        // Theory §5 measures as 54.5% of wall-clock — exactly the budget Phase C can't spend.
         if (entitySensor != null)
         {
             foreach (TagAgent other in arena.AllActiveAgents())
             {
                 if (other == this) continue;
                 Vector3 rel = other.transform.localPosition - transform.localPosition;
-                Vector3 vel = other.GetComponent<Rigidbody>().linearVelocity;
+                Vector3 vel = other.Body.linearVelocity;
                 Vector3 fwd = other.transform.forward;
-                entitySensor.AppendObservation(new float[]
-                {
-                    rel.x, rel.y, rel.z,
-                    vel.x, vel.y, vel.z,
-                    fwd.x, fwd.y, fwd.z,
-                    other.teamId == teamId ? 1f : 0f   // teammate flag
-                });
+                entityScratch[0] = rel.x;
+                entityScratch[1] = rel.y;
+                entityScratch[2] = rel.z;
+                entityScratch[3] = vel.x;
+                entityScratch[4] = vel.y;
+                entityScratch[5] = vel.z;
+                entityScratch[6] = fwd.x;
+                entityScratch[7] = fwd.y;
+                entityScratch[8] = fwd.z;
+                entityScratch[9] = other.teamId == teamId ? 1f : 0f;   // teammate flag
+                entitySensor.AppendObservation(entityScratch);
             }
         }
     }
