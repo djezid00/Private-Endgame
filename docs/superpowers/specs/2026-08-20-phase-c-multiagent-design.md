@@ -137,8 +137,8 @@ Per-event delivery, normalized by runner count `N_r`.
 
 ```
 Runner i tagged at arena step t:
-    timeBonus     = clamp(1 − t/maxEpisodeSteps, 0, 0.5)
-    survivalBonus = clamp(t/maxEpisodeSteps, 0, 0.5)
+    timeBonus     = (1 − clamp01(t/maxEpisodeSteps)) * 0.5
+    survivalBonus = clamp01(t/maxEpisodeSteps) * 0.5
     chaserGroup.AddGroupReward((+1 + timeBonus)     / N_r)
     runnerGroup.AddGroupReward((−1 + survivalBonus) / N_r)
     [PPO arm] mirror to every still-active agent via AddReward

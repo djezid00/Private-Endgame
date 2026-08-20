@@ -281,8 +281,8 @@ Albert also had a couple moments of throwing the cubes at Kai and spinning with 
 - **Random spawn**: Chaser on X ∈ [-8, -1], Runner on X ∈ [+1, +8], both random Z ∈ [-8, 8]
 - **Stalemate**: After 2000 steps → runner group `+1`, chaser group `-1`, then `GroupEpisodeInterrupted()` (truncation, bootstraps value)
 - **Tag reward**: Chaser catches Runner → chaser group `+1 + timeBonus`, runner group `-1 + survivalBonus`, then `EndGroupEpisode()` (true terminal)
-  - `timeBonus = clamp(1 - steps/maxSteps, 0, 0.5)` — reward faster catches
-  - `survivalBonus = clamp(steps/maxSteps, 0, 0.5)` — soften penalty for surviving longer
+  - `timeBonus = (1 - clamp01(steps/maxSteps)) * 0.5` — reward faster catches (SCALED by 0.5, not clamped at it)
+  - `survivalBonus = clamp01(steps/maxSteps) * 0.5` — soften penalty for surviving longer
   - a catch is scored chaser-wins regardless of which collider fired (fixed an old edge-case sign bug)
 
 ### TagMApoca.yaml — Trainer Config
