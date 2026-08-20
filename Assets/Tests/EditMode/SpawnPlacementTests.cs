@@ -95,8 +95,33 @@ public class SpawnPlacementTests
                                                obstacles, obstacles.Count, Clearance, rng, result))
                 successes++;
         }
-        Assert.GreaterOrEqual(successes, 45,
-            $"4v4 spawn feasible in only {successes}/50 seeds — lower the max composition.");
+        // System.Random(seed) is fully deterministic per seed, so there is no run-to-run
+        // noise across seeds 0..49 for slack to absorb — require all 50, not a fuzzy majority.
+        Assert.AreEqual(50, successes,
+            $"4v4 spawn feasible in only {successes}/50 seeds (expected all 50) — lower the max composition.");
+    }
+
+    [Test]
+    public void TrySample_ZeroAgents_SucceedsEmpty()
+    {
+        var rng = new System.Random(1);
+        var result = new List<Vector2>();
+        bool ok = SpawnPlacement.TrySampleSpawns(0, 0, Radius, MinSep,
+                                                 NoObstacles(), 0, Clearance, rng, result);
+        Assert.IsTrue(ok);
+        Assert.AreEqual(0, result.Count);
+    }
+
+    [Test]
+    public void TrySample_ClearsStaleResultBeforeSuccess()
+    {
+        var rng = new System.Random(1); // same seed as TrySample_1v1_Succeeds_AndSeparatesSides
+        var result = new List<Vector2> { new Vector2(99f, 99f) }; // stale content must be cleared
+        bool ok = SpawnPlacement.TrySampleSpawns(1, 1, Radius, MinSep,
+                                                 NoObstacles(), 0, Clearance, rng, result);
+        Assert.IsTrue(ok);
+        Assert.AreEqual(2, result.Count);
+        CollectionAssert.DoesNotContain(result, new Vector2(99f, 99f));
     }
 
     [Test]

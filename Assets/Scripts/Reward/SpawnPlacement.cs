@@ -12,7 +12,16 @@ using UnityEngine;
 /// </summary>
 public static class SpawnPlacement
 {
-    /// <summary>Rejection-sampling attempts per agent before the whole sample fails.</summary>
+    /// <summary>
+    /// Rejection-sampling attempts per agent before the whole sample fails. Higher than
+    /// ObstaclePlacement's MaxAttemptsPerObstacle (50) because agent placement is a harder
+    /// rejection problem: each candidate must clear TWO independent constraints (pairwise
+    /// separation against every previously placed agent, AND obstacle clearance) within
+    /// roughly half the arena area (one side only), and later agents in an up-to-8-agent
+    /// sequence face more occupied space than obstacle placement ever does. Feasibility at
+    /// the target composition is covered by
+    /// TrySample_MaxComposition_4v4_WithFourPillars_IsFeasible.
+    /// </summary>
     public const int MaxAttemptsPerAgent = 60;
 
     /// <summary>

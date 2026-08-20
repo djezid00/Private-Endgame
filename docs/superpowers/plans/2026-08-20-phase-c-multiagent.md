@@ -21,6 +21,13 @@
 
 **Commit after every task.** Never `git add -A` — stage explicit paths only (the user keeps untracked drafts in `docs/`).
 
+> **Unity `.meta` files — applies to every task that creates a file under `Assets/`.**
+> Unity generates a `.meta` beside each asset when the Editor next gains focus, and
+> `.gitignore` deliberately un-ignores them (`!/[Aa]ssets/**/*.meta`). An agent cannot
+> generate them. So: the agent commits the `.cs` file, and after the user's next Editor
+> session the generated `.meta` must be committed too. **Task 7 Step 5 collects all
+> outstanding `.meta` files in one commit** — do not hand-write them.
+
 **Do not add an AI co-author trailer to commit messages.**
 
 ---
@@ -872,14 +879,26 @@ Replace the whole `ResetArena` method and the `SampleSpawn` helper with:
 
         if (!ok)
         {
-            // Fallback: relax separation rather than break training. Logged once so an
+            // Fallback: relax separation rather than break training. Logged so an
             // over-crowded composition is visible in the player log instead of silent.
             Debug.LogWarning($"[TagArenaManager] spawn sampling failed for " +
                              $"{activeChasers.Count}v{activeRunners.Count}; retrying with half separation.");
-            SpawnPlacement.TrySampleSpawns(
+            ok = SpawnPlacement.TrySampleSpawns(
                 activeChasers.Count, activeRunners.Count, arenaRadius, minSpawnDistance * 0.5f,
                 ObstaclePositions(), ObstaclePositionCount(), ObstacleClearance(),
                 spawnRng, spawnBuffer);
+        }
+
+        if (!ok)
+        {
+            // SpawnPlacement CLEARS its result list on failure, so spawnBuffer is now empty.
+            // Indexing it below would throw ArgumentOutOfRangeException and kill the training
+            // process mid-run. Fall back to a deterministic grid instead: correctness of the
+            // episode matters less than never crashing a 5M-step unattended run.
+            Debug.LogError($"[TagArenaManager] spawn sampling failed TWICE for " +
+                           $"{activeChasers.Count}v{activeRunners.Count} — using fallback grid. " +
+                           $"This composition is over-crowded; lower it.");
+            FallbackGridSpawns(activeChasers.Count, activeRunners.Count, spawnBuffer);
         }
 
         // 5. Place agents, zero physics, randomize yaw.
@@ -900,6 +919,27 @@ Replace the whole `ResetArena` method and the `SampleSpawn` helper with:
         // 7. Seed per-episode shaping state now that positions are final.
         foreach (TagAgent c in activeChasers) c.OnArenaReset();
         foreach (TagAgent r in activeRunners) r.OnArenaReset();
+    }
+
+    /// <summary>
+    /// Last-resort deterministic spawn layout, used only when rejection sampling has failed
+    /// twice. Evenly spaces each team down its own side of the arena. May violate
+    /// minSpawnDistance for very large teams — that is preferable to crashing the run.
+    /// </summary>
+    private void FallbackGridSpawns(int chaserCount, int runnerCount, List<Vector2> buffer)
+    {
+        buffer.Clear();
+        float edge = arenaRadius - 1f;
+        for (int i = 0; i < chaserCount; i++)
+        {
+            float t = chaserCount == 1 ? 0.5f : (float)i / (chaserCount - 1);
+            buffer.Add(new Vector2(-edge * 0.5f, Mathf.Lerp(-edge, edge, t)));
+        }
+        for (int i = 0; i < runnerCount; i++)
+        {
+            float t = runnerCount == 1 ? 0.5f : (float)i / (runnerCount - 1);
+            buffer.Add(new Vector2(edge * 0.5f, Mathf.Lerp(-edge, edge, t)));
+        }
     }
 
     private void PlaceAgent(TagAgent agent, Vector2 xz)
@@ -1141,6 +1181,21 @@ Open `Assets/Scenes/Scene_V2.unity`. It holds 16 TagArena instances; all inherit
 git add Assets/Prefabs/TagArena.prefab Assets/Prefabs/ChaserAgent.prefab Assets/Prefabs/RunnerAgent.prefab Assets/Scenes/Scene_V2.unity
 git commit -m "chore: TagArena carries 4+4 agents with TeamManager; agents gain BufferSensor"
 ```
+
+- [ ] **Step 6: Commit the Unity-generated `.meta` files for every new script**
+
+Opening the Editor generated a `.meta` beside each script added in Tasks 2 and 3. These are
+tracked by design (`.gitignore` un-ignores `Assets/**/*.meta`) and were not committable earlier
+because only Unity can create them. Check for them and commit:
+
+```bash
+git status --porcelain Assets/ | grep '\.meta'
+git add Assets/Scripts/Reward/SpawnPlacement.cs.meta Assets/Scripts/TeamManager.cs.meta Assets/Tests/EditMode/SpawnPlacementTests.cs.meta
+git commit -m "chore: Unity-generated meta files for Phase C scripts"
+```
+
+If `git status` shows additional new `.meta` files under `Assets/`, add those too. Do not
+hand-write any `.meta` file.
 
 ---
 
