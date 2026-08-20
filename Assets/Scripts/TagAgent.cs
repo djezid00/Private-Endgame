@@ -33,6 +33,7 @@ public class TagAgent : Agent
     // PRIVATE STATE
     // ─────────────────────────────────────────────
     private Rigidbody rb;
+    private BufferSensorComponent entitySensor;
 
     // ─────────────────────────────────────────────
     // INITIALIZE — runs ONCE when the agent is first created
@@ -42,45 +43,17 @@ public class TagAgent : Agent
     public override void Initialize()
     {
         rb = GetComponent<Rigidbody>();
+        entitySensor = GetComponent<BufferSensorComponent>();
     }
 
     // ─────────────────────────────────────────────
-    // ON EPISODE BEGIN — runs at the START of every episode
-    //
-    // KEY FIX: Only the CHASER (teamId == 0) calls ResetArena().
-    // Previously BOTH agents called ResetArena(), causing a double-reset
-    // race condition that spawned agents on top of each other,
-    // triggering an instant collision → instant episode end → infinite loop.
+    // ON EPISODE BEGIN
+    // Arena reset and the step clock are owned by TagArenaManager (Phase C).
+    // Agents no longer drive either — with N chasers there is no privileged one,
+    // and this also fixes the old ordering bug where the runner was repositioned
+    // before its own group episode ended.
     // ─────────────────────────────────────────────
-    public override void OnEpisodeBegin()
-    {
-        if (teamId == 0)
-        {
-            arena.ResetArena();
-
-            // Select this arm's shaping coefficient from the trainer config
-            // (environment_parameters.distance_shaping_coef). 0 ⇒ sparse arm.
-            distanceShapingCoef = Academy.Instance.EnvironmentParameters
-                .GetWithDefault("distance_shaping_coef", 0f);
-
-            // PBS gamma MUST track the trainer's extrinsic.gamma (gamma-sweep experiment).
-            // Falls back to the inspector value ⇒ configs without the param are unchanged.
-            shapingGamma = Academy.Instance.EnvironmentParameters
-                .GetWithDefault("shaping_gamma", shapingGamma);
-
-            if (!shapingParamsLogged)
-            {
-                Debug.Log($"[TagAgent] distance_shaping_coef={distanceShapingCoef:F2}, " +
-                          $"shaping_gamma={shapingGamma:F3}");
-                shapingParamsLogged = true;
-            }
-
-            // Seed Φ from the freshly-reset spawn so the first PBS delta is well-defined.
-            prevPotential = CurrentPotential();
-        }
-
-        // Runner does nothing here — it just waits for chaser's reset to place it.
-    }
+    public override void OnEpisodeBegin() { }
 
     // ─────────────────────────────────────────────
     // COLLECT OBSERVATIONS — called every step before the agent acts
@@ -90,42 +63,79 @@ public class TagAgent : Agent
     public override void CollectObservations(VectorSensor sensor)
     {
         // ── SELF (9 floats) ──────────────────────────────────────────────────
-        // localPosition: where am I in the arena? (3 floats)
         sensor.AddObservation(transform.localPosition);
-
-        // linearVelocity: how fast and in what direction am I moving? (3 floats)
         sensor.AddObservation(rb.linearVelocity);
-
-        // forward: which direction am I facing? (3 floats)
         sensor.AddObservation(transform.forward);
 
-        // ── OPPONENT (9 floats) ──────────────────────────────────────────────
-        TagAgent   opponent   = arena.GetOpponent(this);
-        Rigidbody  opponentRb = opponent.GetComponent<Rigidbody>();
+        // ── NEAREST ACTIVE OPPONENT (9 floats) ───────────────────────────────
+        // Kept in the vector observation so that at 1v1 the agent sees byte-identical
+        // values to every pre-Phase-C experiment (the buffer below is empty there).
+        TagAgent opponent = arena.GetNearestOpponent(this);
+        if (opponent != null)
+        {
+            sensor.AddObservation(opponent.transform.localPosition - transform.localPosition);
+            sensor.AddObservation(opponent.GetComponent<Rigidbody>().linearVelocity);
+            sensor.AddObservation(opponent.transform.forward);
+        }
+        else
+        {
+            // All opponents caught; episode is about to end. Zeros keep the size fixed.
+            sensor.AddObservation(Vector3.zero);
+            sensor.AddObservation(Vector3.zero);
+            sensor.AddObservation(Vector3.zero);
+        }
+        // TOTAL vector: 18 floats — unchanged from 1v1.
 
-        // Relative position: where is the opponent relative to ME? (3 floats)
-        // Using relative (not absolute) position makes the observation
-        // arena-position-independent — the agent learns "opponent is 3m right"
-        // rather than "opponent is at world position (7, 1, 2)".
-        sensor.AddObservation(opponent.transform.localPosition - transform.localPosition);
-
-        // Opponent's velocity: how fast is the opponent moving and where? (3 floats)
-        sensor.AddObservation(opponentRb.linearVelocity);
-
-        // Opponent's facing direction: which way is the opponent turned? (3 floats)
-        sensor.AddObservation(opponent.transform.forward);
-
-        // TOTAL: 18 floats — must match VectorObservationSize in BehaviorParameters
+        // ── ALL OTHER ACTIVE AGENTS (BufferSensor, 10 floats each) ───────────
+        if (entitySensor != null)
+        {
+            foreach (TagAgent other in arena.AllActiveAgents())
+            {
+                if (other == this) continue;
+                Vector3 rel = other.transform.localPosition - transform.localPosition;
+                Vector3 vel = other.GetComponent<Rigidbody>().linearVelocity;
+                Vector3 fwd = other.transform.forward;
+                entitySensor.AppendObservation(new float[]
+                {
+                    rel.x, rel.y, rel.z,
+                    vel.x, vel.y, vel.z,
+                    fwd.x, fwd.y, fwd.z,
+                    other.teamId == teamId ? 1f : 0f   // teammate flag
+                });
+            }
+        }
     }
 
-    // Current potential Φ(s) for the chaser, from live positions. Uses localPosition
-    // to match the observation frame (both agents are children of the same arena).
+    // Current potential Φ(s) for the chaser, measured against the NEAREST active runner.
+    // Sparse arm (coef 0) makes this a no-op, which is every Phase C run.
     private float CurrentPotential()
     {
-        TagAgent opponent = arena.GetOpponent(this);
+        TagAgent opponent = arena.GetNearestOpponent(this);
+        if (opponent == null) return 0f;
         return TagReward.Potential(transform.localPosition,
                                    opponent.transform.localPosition,
                                    distanceShapingCoef, arenaDiagonal);
+    }
+
+    /// <summary>
+    /// Called by TagArenaManager after every reset. Reads the shaping env-params and
+    /// seeds Φ from the fresh spawn so the first PBS delta is well-defined.
+    /// </summary>
+    public void OnArenaReset()
+    {
+        distanceShapingCoef = Academy.Instance.EnvironmentParameters
+            .GetWithDefault("distance_shaping_coef", 0f);
+        shapingGamma = Academy.Instance.EnvironmentParameters
+            .GetWithDefault("shaping_gamma", shapingGamma);
+
+        if (!shapingParamsLogged)
+        {
+            Debug.Log($"[TagAgent] distance_shaping_coef={distanceShapingCoef:F2}, " +
+                      $"shaping_gamma={shapingGamma:F3}");
+            shapingParamsLogged = true;
+        }
+
+        prevPotential = CurrentPotential();
     }
 
     // ─────────────────────────────────────────────
@@ -152,27 +162,19 @@ public class TagAgent : Agent
         // ── ROLE-BASED STEP REWARD ───────────────────────────────────────────
         if (teamId == 0) // CHASER
         {
-            // Small negative reward every step → chaser is punished for wasting time
-            // This creates urgency: catch the runner as fast as possible.
             AddReward(-0.001f);
 
-            // Potential-based shaping: reward closing distance to the runner.
-            // Policy-invariant (Ng et al. 1999). No-op in the sparse arm (coef 0 ⇒ Φ ≡ 0).
             float curPotential = CurrentPotential();
             AddReward(TagReward.ShapingDelta(prevPotential, curPotential, shapingGamma));
             prevPotential = curPotential;
-
-            // Only the chaser ticks the arena step clock.
-            // If the runner also called arena.Step(), the timer would advance
-            // twice per frame (double-speed stalemate).
-            arena.Step();
         }
         else // RUNNER
         {
-            // Small positive reward every step → runner is rewarded for surviving
-            // This creates evasion: stay alive as long as possible.
             AddReward(+0.001f);
         }
+        // NOTE: arena.Step() is NOT called here any more — TagArenaManager.FixedUpdate
+        // owns the clock, so it ticks exactly once per physics step regardless of how
+        // many chasers exist.
     }
 
     // ─────────────────────────────────────────────
