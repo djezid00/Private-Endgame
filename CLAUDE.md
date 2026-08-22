@@ -282,6 +282,28 @@ Albert also had a couple moments of throwing the cubes at Kai and spinning with 
 > - **Smoke gate criterion 3 decides the phase:** `Baseline/Value > 1.05` at 2v2, checked at 50k
 >   (~10 min). If it stays ~1.00 the premise is dead — stop and report that as the finding.
 
+>
+> **Updated 2026-08-22 (Phase C infra gotchas — read before touching the conda envs).**
+> - **`mlagents_gpu` env exists** (clone of `mlagents` + `torch 2.11.0+cu126`). GPU gives
+>   **5.7× on the gradient update, 2.3× overall** at 2v2 → ~4.8 h per 5M run instead of ~11.3 h.
+>   `Theory §5`'s "workload is environment-bound, GPU irrelevant" holds at 1v1 and **breaks at 2v2**:
+>   env_step goes 54.5% (1v1) → 29.3% (2v2 CPU) → 53.3% (2v2 GPU).
+> - **GOTCHA A — `dynamo=False` patch.** `ml-agents/mlagents/trainers/torch_entities/
+>   model_serialization.py` carries a hand-added `dynamo=False` in the `torch.onnx.export` call.
+>   torch>=2.9 defaults `dynamo=True`, which needs `onnxscript` — absent, and installing it would
+>   force `onnx>=1.16` against ml-agents' `onnx==1.15.0` pin, changing the emitted opset vs every
+>   Phase A/B model. **This patch is invisible to `pip list` and is destroyed by any reinstall of
+>   the mlagents package.** Without it every run dies at the first `checkpoint_interval`
+>   (250k of 5M) with `ModuleNotFoundError: No module named 'onnxscript'` — after ~14 min of
+>   training, so it looks like the batch "finished".
+> - **GOTCHA B — conda-cloned console scripts.** `conda create --clone` copies `Scripts\*.exe`
+>   launchers that embed the ORIGINAL env's interpreter path. So `mlagents-learn` inside
+>   `mlagents_gpu` silently ran the CPU env while `python -c "import torch"` reported CUDA fine.
+>   Fix WITHOUT `--force-reinstall` (which wipes Gotcha A's patch): use
+>   `python -m mlagents.trainers.learn ...`, or `pip install -e <path> --no-deps` alone.
+> - `experiments/run_phaseC.bat` now preflights BOTH (CUDA available, `onnxscript` importable)
+>   and aborts on the first failed run instead of burning through the rest.
+
 
 ### TagAgent.cs — Key Facts
 - Inherits from `Unity.MLAgents.Agent`
