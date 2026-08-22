@@ -1156,6 +1156,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: RunnerAgent (3)
       objectReference: {fileID: 0}
+    - target: {fileID: 229866668187415522, guid: 009a15a2e3c8ed147acc9ff391b9d328, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 4772431404091379836, guid: 009a15a2e3c8ed147acc9ff391b9d328, type: 3}
       propertyPath: m_LocalPosition.x
       value: 4
@@ -1313,6 +1317,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: ChaserAgent (1)
       objectReference: {fileID: 0}
+    - target: {fileID: 5358814833621077960, guid: 5803ef05616315249abd66e59111f36b, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 6053782438284907029, guid: 5803ef05616315249abd66e59111f36b, type: 3}
       propertyPath: m_LocalPosition.x
       value: -6.162
@@ -1409,6 +1417,10 @@ PrefabInstance:
     - target: {fileID: 229866668187415522, guid: 009a15a2e3c8ed147acc9ff391b9d328, type: 3}
       propertyPath: m_Name
       value: RunnerAgent (1)
+      objectReference: {fileID: 0}
+    - target: {fileID: 229866668187415522, guid: 009a15a2e3c8ed147acc9ff391b9d328, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4772431404091379836, guid: 009a15a2e3c8ed147acc9ff391b9d328, type: 3}
       propertyPath: m_LocalPosition.x
@@ -1566,6 +1578,10 @@ PrefabInstance:
     - target: {fileID: 5358814833621077960, guid: 5803ef05616315249abd66e59111f36b, type: 3}
       propertyPath: m_Name
       value: ChaserAgent (2)
+      objectReference: {fileID: 0}
+    - target: {fileID: 5358814833621077960, guid: 5803ef05616315249abd66e59111f36b, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6053782438284907029, guid: 5803ef05616315249abd66e59111f36b, type: 3}
       propertyPath: m_LocalPosition.x
@@ -1789,6 +1805,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: RunnerAgent (2)
       objectReference: {fileID: 0}
+    - target: {fileID: 229866668187415522, guid: 009a15a2e3c8ed147acc9ff391b9d328, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 4772431404091379836, guid: 009a15a2e3c8ed147acc9ff391b9d328, type: 3}
       propertyPath: m_LocalPosition.x
       value: 4
@@ -1945,6 +1965,10 @@ PrefabInstance:
     - target: {fileID: 5358814833621077960, guid: 5803ef05616315249abd66e59111f36b, type: 3}
       propertyPath: m_Name
       value: ChaserAgent (3)
+      objectReference: {fileID: 0}
+    - target: {fileID: 5358814833621077960, guid: 5803ef05616315249abd66e59111f36b, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6053782438284907029, guid: 5803ef05616315249abd66e59111f36b, type: 3}
       propertyPath: m_LocalPosition.x
