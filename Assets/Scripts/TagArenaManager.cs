@@ -202,96 +202,105 @@ public class TagArenaManager : MonoBehaviour
     // STALEMATE — time ran out, nobody won
     // Runner wins a stalemate (survived), chaser loses.
     // ─────────────────────────────────────────────
+    /// <summary>
+    /// Time ran out. Every runner still alive scores a survival share for its team.
+    /// Truncation, not a true terminal ⇒ GroupEpisodeInterrupted bootstraps the value.
+    /// </summary>
     private void TriggerStalemate()
     {
         if (episodeEnded) return;
         episodeEnded = true;
 
-        // Runner group survived the full episode — reward it
-        runnerGroup.AddGroupReward(+1f);
-        // Chaser group failed to catch the runner — penalise it
-        chaserGroup.AddGroupReward(-1f);
+        int n = activeRunners.Count;
+        int survivors = 0;
+        foreach (TagAgent r in activeRunners)
+            if (r.gameObject.activeInHierarchy) survivors++;
 
-        // PPO also needs the win/lose signal individually (see IndividualTerminalRewardOn).
-        if (IndividualTerminalRewardOn())
+        for (int i = 0; i < survivors; i++)
         {
-            runner.AddReward(+1f);
-            chaser.AddReward(-1f);
+            chaserGroup.AddGroupReward(TagReward.SurvivalShareChaser(n));
+            runnerGroup.AddGroupReward(TagReward.SurvivalShareRunner(n));
+            if (IndividualTerminalRewardOn())
+            {
+                foreach (TagAgent c in activeChasers)
+                    if (c.gameObject.activeInHierarchy) c.AddReward(TagReward.SurvivalShareChaser(n));
+                foreach (TagAgent r in activeRunners)
+                    if (r.gameObject.activeInHierarchy) r.AddReward(TagReward.SurvivalShareRunner(n));
+            }
         }
 
-        // Outcome metric — recorded BEFORE ending the episode (the group-end call synchronously
-        // resets the arena; see OnAgentTagged). 0 = no catch this episode (averaged ⇒ catch rate).
-        stats.Add("Environment/Catch", 0f);
+        RecordEpisodeStats(allCaught: false);
 
-        // Timeout is a TRUNCATION, not a true terminal state, so use
-        // GroupEpisodeInterrupted: it bootstraps the value estimate at the cutoff
-        // instead of treating it as a real end (correct for stalemate).
         chaserGroup.GroupEpisodeInterrupted();
         runnerGroup.GroupEpisodeInterrupted();
+        ResetArena();
     }
 
     // ─────────────────────────────────────────────
     // TAGGING EVENT
     // Called from TagAgent.OnCollisionEnter when two agents collide.
-    // tagger  = the agent whose OnCollisionEnter fired
-    // tagged  = the OTHER agent that was hit
     // ─────────────────────────────────────────────
-    public void OnAgentTagged(TagAgent tagger, TagAgent tagged)
+    /// <summary>
+    /// Called from TagAgent.OnCollisionEnter. A catch is scored chaser-side regardless of
+    /// which collider fired. The tagged runner is rewarded BEFORE deactivation — order is
+    /// load-bearing, because SetActive(false) auto-unregisters it from its group and it can
+    /// receive nothing afterwards.
+    /// </summary>
+    public void OnAgentTagged(TagAgent a, TagAgent b)
     {
-        // Guard: ignore if episode already ended (e.g. stalemate fired first)
         if (episodeEnded) return;
-        episodeEnded = true;
 
-        // Use the arena's maxEpisodeSteps as fallback if agent MaxStep is 0
-        int taggerMax = (tagger.MaxStep > 0) ? tagger.MaxStep : maxEpisodeSteps;
-        int taggedMax = (tagged.MaxStep  > 0) ? tagged.MaxStep  : maxEpisodeSteps;
+        TagAgent runner = (a.teamId == 1) ? a : (b.teamId == 1 ? b : null);
+        if (runner == null) return;                       // chaser-chaser bump
+        if (a.teamId == b.teamId) return;                 // same-team bump
+        if (!runner.gameObject.activeInHierarchy) return;  // already caught this episode
 
-        float taggerProgress = Mathf.Clamp01((float)tagger.StepCount / taggerMax);
-        float taggedProgress = Mathf.Clamp01((float)tagged.StepCount / taggedMax);
+        int n = activeRunners.Count;
 
-        bool mirror = IndividualTerminalRewardOn();
+        chaserGroup.AddGroupReward(TagReward.CatchShareChaser(stepCount, maxEpisodeSteps, n));
+        runnerGroup.AddGroupReward(TagReward.CatchShareRunner(stepCount, maxEpisodeSteps, n));
 
-        if (tagger.teamId == 0) // ── CHASER caught RUNNER ─────────────────────
+        if (IndividualTerminalRewardOn())
         {
-            // Chaser group reward: base +1 plus a time bonus up to +0.5
-            // (catches faster = bigger bonus → chaser learns urgency)
-            float timeBonus = (1f - taggerProgress) * 0.5f;
-            // Runner group reward: base -1 but survival softens penalty up to +0.5
-            // (survived longer = smaller net penalty → runner learns to dodge)
-            float survivalBonus = taggedProgress * 0.5f;
-
-            chaserGroup.AddGroupReward(1f + timeBonus);
-            runnerGroup.AddGroupReward(-1f + survivalBonus);
-
-            if (mirror)
-            {
-                chaser.AddReward(1f + timeBonus);
-                runner.AddReward(-1f + survivalBonus);
-            }
-        }
-        else // ── RUNNER somehow triggered the collision (edge case) ──────────
-        {
-            // A catch is a catch: chaser side wins regardless of which collider fired.
-            chaserGroup.AddGroupReward( 1f);
-            runnerGroup.AddGroupReward(-1f);
-
-            if (mirror)
-            {
-                chaser.AddReward( 1f);
-                runner.AddReward(-1f);
-            }
+            // PPO arm: mirror to every STILL-ACTIVE agent (the tagged runner included —
+            // it is still active at this point). Agents deactivated earlier miss this,
+            // which is exactly the limitation under test.
+            foreach (TagAgent c in activeChasers)
+                if (c.gameObject.activeInHierarchy)
+                    c.AddReward(TagReward.CatchShareChaser(stepCount, maxEpisodeSteps, n));
+            foreach (TagAgent r in activeRunners)
+                if (r.gameObject.activeInHierarchy)
+                    r.AddReward(TagReward.CatchShareRunner(stepCount, maxEpisodeSteps, n));
         }
 
-        // Outcome metrics — recorded BEFORE ending the episode. EndGroupEpisode() synchronously
-        // runs the chaser's OnEpisodeBegin → ResetArena, which zeroes stepCount; reading it after
-        // that was the bug that logged TimeToCatch = 0. stepCount here is the catch time in
-        // physics steps (1 = catch; averaged ⇒ catch rate / mean steps-to-catch).
-        stats.Add("Environment/Catch", 1f);
         stats.Add("Environment/TimeToCatch", stepCount);
+        runnersCaughtThisEpisode++;
 
-        // A catch IS a true terminal state → EndGroupEpisode (no value bootstrap).
-        chaserGroup.EndGroupEpisode();
-        runnerGroup.EndGroupEpisode();
+        runner.gameObject.SetActive(false);   // AFTER the rewards above
+
+        // Episode ends only when every runner has been caught.
+        if (runnersCaughtThisEpisode >= n)
+        {
+            episodeEnded = true;
+            RecordEpisodeStats(allCaught: true);
+            chaserGroup.EndGroupEpisode();
+            runnerGroup.EndGroupEpisode();
+            ResetArena();
+        }
+    }
+
+    /// <summary>
+    /// Episode outcome metrics. Recorded BEFORE the group-end calls, matching the fix that
+    /// resolved the old TimeToCatch = 0 bug.
+    ///   Environment/Catch            1 = every runner caught (STRICTER than the 1v1 metric)
+    ///   Environment/RunnersSurvived  fraction alive at episode end — the primary cross-arm
+    ///                                metric for Phase C, since ELO cannot carry comparisons.
+    /// </summary>
+    private void RecordEpisodeStats(bool allCaught)
+    {
+        int n = activeRunners.Count;
+        stats.Add("Environment/Catch", allCaught ? 1f : 0f);
+        stats.Add("Environment/RunnersSurvived", n > 0 ? (float)(n - runnersCaughtThisEpisode) / n : 0f);
     }
 
     /// <summary>Nearest ACTIVE opponent to the given agent, or null if none remain.</summary>
