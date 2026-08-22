@@ -13,7 +13,7 @@ ARCHIVE      = r"c:\Users\david\Documents\PROGRAMMING\UnityProjects\TagMApoca_V1
 COMPOSITIONS = {"2v2": (2, 2), "3v3": (3, 3)}
 
 
-def behavior(name, trainer, max_steps, summary_freq, ckpt):
+def behavior(name, trainer, max_steps, summary_freq, ckpt, save_steps, swap_steps, team_change):
     return f"""  {name}:
     trainer_type: {trainer}
     hyperparameters:
@@ -44,9 +44,9 @@ def behavior(name, trainer, max_steps, summary_freq, ckpt):
     self_play:
       window: 10
       play_against_latest_model_ratio: 0.5
-      save_steps: 50000
-      swap_steps: 50000
-      team_change: 100000
+      save_steps: {save_steps}
+      swap_steps: {swap_steps}
+      team_change: {team_change}
       initial_elo: 1200.0
 """
 
@@ -54,11 +54,13 @@ def behavior(name, trainer, max_steps, summary_freq, ckpt):
 def config(header, trainer, nc, nr, indiv_term, smoke=False):
     if smoke:
         max_steps, summary, ckpt = 50000, 10000, 25000
+        save_steps, swap_steps, team_change = 5000, 3000, 20000
     else:
         max_steps, summary, ckpt = 5000000, 50000, 250000
+        save_steps, swap_steps, team_change = 50000, 50000, 100000
     body = header + "behaviors:\n"
-    body += behavior("Chaser", trainer, max_steps, summary, ckpt)
-    body += behavior("Runner", trainer, max_steps, summary, ckpt)
+    body += behavior("Chaser", trainer, max_steps, summary, ckpt, save_steps, swap_steps, team_change)
+    body += behavior("Runner", trainer, max_steps, summary, ckpt, save_steps, swap_steps, team_change)
     body += f"""
 environment_parameters:
   distance_shaping_coef: 0.0
