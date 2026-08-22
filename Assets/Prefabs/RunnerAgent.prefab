@@ -17,6 +17,7 @@ GameObject:
   - component: {fileID: -3345513669462096763}
   - component: {fileID: 5316905605921693781}
   - component: {fileID: 7000000000000000002}
+  - component: {fileID: 8970686247323448292}
   m_Layer: 0
   m_Name: RunnerAgent
   m_TagString: Agent
@@ -242,3 +243,18 @@ MonoBehaviour:
   DecisionPeriod: 5
   DecisionStep: 0
   TakeActionsBetweenDecisions: 1
+--- !u!114 &8970686247323448292
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 229866668187415522}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dd8012d5925524537b27131fef517017, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Sensors.BufferSensorComponent
+  m_SensorName: BufferSensor
+  m_ObservableSize: 10
+  m_MaxNumObservables: 7
