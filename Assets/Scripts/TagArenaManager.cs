@@ -19,7 +19,6 @@ public class TagArenaManager : MonoBehaviour
 
     [Header("Spawn Safety")]
     public float minSpawnDistance = 3f;
-    public int   spawnRetryLimit  = 30;
 
     [Header("Stalemate Prevention")]
     public int maxEpisodeSteps = 2000;
@@ -63,6 +62,11 @@ public class TagArenaManager : MonoBehaviour
         Academy.Instance.OnEnvironmentReset += ResetArena;
     }
 
+    private void OnDestroy()
+    {
+        if (Academy.IsInitialized) Academy.Instance.OnEnvironmentReset -= ResetArena;
+    }
+
     // ─────────────────────────────────────────────
     // STEP CLOCK — owned by the arena, ticked once per physics step.
     // Previously the chaser called arena.Step() from OnActionReceived, which does not
@@ -78,11 +82,30 @@ public class TagArenaManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Full arena reset. Called from Start() and after every episode end — by the arena
-    /// itself, never from an agent's OnEpisodeBegin (that was the old ordering bug).
+    /// Full arena reset. Called via the Academy's environment-reset event, and directly
+    /// after every episode end — by the arena itself, never from an agent's OnEpisodeBegin
+    /// (that was the old ordering bug).
     /// </summary>
     public void ResetArena()
     {
+        if (teams == null)
+        {
+            Debug.LogError($"[TagArenaManager] on '{name}': the 'teams' reference is not assigned. " +
+                           $"Add a TeamManager component to the TagArena prefab and drag it into this " +
+                           $"field — the arena cannot reset without it.");
+            return;
+        }
+
+        // If a reset arrives while an episode is still live (e.g. a future curriculum firing
+        // OnEnvironmentReset mid-run), close the episode properly first. Without this the
+        // agents would be teleported with no terminal signal and the trainer would splice
+        // two unrelated trajectory halves together.
+        if (!episodeEnded)
+        {
+            chaserGroup.GroupEpisodeInterrupted();
+            runnerGroup.GroupEpisodeInterrupted();
+        }
+
         episodeEnded = false;
         stepCount    = 0;
         runnersCaughtThisEpisode = 0;
@@ -216,17 +239,17 @@ public class TagArenaManager : MonoBehaviour
         foreach (TagAgent r in activeRunners)
             if (r.gameObject.activeInHierarchy) survivors++;
 
-        for (int i = 0; i < survivors; i++)
+        float chaserShare = survivors * TagReward.SurvivalShareChaser(n);
+        float runnerShare = survivors * TagReward.SurvivalShareRunner(n);
+        chaserGroup.AddGroupReward(chaserShare);
+        runnerGroup.AddGroupReward(runnerShare);
+
+        if (survivors > 0 && IndividualTerminalRewardOn())
         {
-            chaserGroup.AddGroupReward(TagReward.SurvivalShareChaser(n));
-            runnerGroup.AddGroupReward(TagReward.SurvivalShareRunner(n));
-            if (IndividualTerminalRewardOn())
-            {
-                foreach (TagAgent c in activeChasers)
-                    if (c.gameObject.activeInHierarchy) c.AddReward(TagReward.SurvivalShareChaser(n));
-                foreach (TagAgent r in activeRunners)
-                    if (r.gameObject.activeInHierarchy) r.AddReward(TagReward.SurvivalShareRunner(n));
-            }
+            foreach (TagAgent c in activeChasers)
+                if (c.gameObject.activeInHierarchy) c.AddReward(chaserShare);
+            foreach (TagAgent r in activeRunners)
+                if (r.gameObject.activeInHierarchy) r.AddReward(runnerShare);
         }
 
         RecordEpisodeStats(allCaught: false);
