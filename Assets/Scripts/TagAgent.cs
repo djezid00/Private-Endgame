@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using Unity.MLAgents;
 using Unity.MLAgents.Actuators;
@@ -37,8 +38,9 @@ public class TagAgent : Agent
     /// <summary>
     /// This agent's Rigidbody, cached. Other agents read it every decision step when
     /// building their BufferSensor entities; GetComponent there would cost tens of
-    /// thousands of native lookups per second at 8 agents x 16 arenas. Lazily resolved
-    /// because a teammate may be observed before its own Initialize() has run.
+    /// thousands of native lookups per second at 8 agents x 16 arenas. Lazily resolved as
+    /// defence-in-depth; under the documented lifecycle Initialize() has always run on an
+    /// active agent, so this check should never fire.
     /// </summary>
     public Rigidbody Body
     {
@@ -115,8 +117,11 @@ public class TagAgent : Agent
         // Theory §5 measures as 54.5% of wall-clock — exactly the budget Phase C can't spend.
         if (entitySensor != null)
         {
-            foreach (TagAgent other in arena.AllActiveAgents())
+            // Indexed loop over the arena's reused buffer — no enumerator, no allocation.
+            List<TagAgent> others = arena.AllActiveAgents();
+            for (int k = 0; k < others.Count; k++)
             {
+                TagAgent other = others[k];
                 if (other == this) continue;
                 Vector3 rel = other.transform.localPosition - transform.localPosition;
                 Vector3 vel = other.Body.linearVelocity;
@@ -165,7 +170,10 @@ public class TagAgent : Agent
             shapingParamsLogged = true;
         }
 
-        prevPotential = CurrentPotential();
+        // Shaping is chaser-only (see the class header). Seeding it for runners wastes a
+        // GetNearestOpponent + distance call per runner per reset and widens the surface for
+        // stale Phi if an agent is ever reactivated mid-episode in a shaped run.
+        prevPotential = (teamId == 0) ? CurrentPotential() : 0f;
     }
 
     // ─────────────────────────────────────────────
