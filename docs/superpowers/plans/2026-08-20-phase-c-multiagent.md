@@ -685,8 +685,11 @@ In `Assets/Scripts/TagAgent.cs`, replace the entire `CollectObservations` method
         // of production wall-clock. This phase is environment-bound; do not add garbage to it.
         if (entitySensor != null)
         {
-            foreach (TagAgent other in arena.AllActiveAgents())
+            // Indexed loop over the arena's reused buffer — no enumerator, no allocation.
+            List<TagAgent> others = arena.AllActiveAgents();
+            for (int k = 0; k < others.Count; k++)
             {
+                TagAgent other = others[k];
                 if (other == this) continue;
                 Vector3 rel = other.transform.localPosition - transform.localPosition;
                 Vector3 vel = other.Body.linearVelocity;   // cached, not GetComponent per step
@@ -712,6 +715,8 @@ In the same file, replace the `Initialize` method with:
         entitySensor = GetComponent<BufferSensorComponent>();
     }
 ```
+
+Ensure `using System.Collections.Generic;` is present at the top of the file (needed for `List<TagAgent>`).
 
 Add these members next to `private Rigidbody rb;`:
 
@@ -805,9 +810,20 @@ Add a public method so the arena can seed shaping state after a reset (previousl
             shapingParamsLogged = true;
         }
 
-        prevPotential = CurrentPotential();
+        // Shaping is chaser-only (see the class header). Seeding it for runners wastes a
+        // GetNearestOpponent + distance call per runner per reset and widens the surface for
+        // stale Phi if an agent is ever reactivated mid-episode in a shaped run.
+        prevPotential = (teamId == 0) ? CurrentPotential() : 0f;
     }
 ```
+
+Also correct the `Body` doc comment: the lazy `rb == null` check is defence-in-depth, not a fix
+for a live race. `Agent.OnEnable() -> LazyInitialize() -> Initialize()` runs synchronously on
+activation, and `AllActiveAgents()` only ever returns already-active agents, so an observed
+teammate has always run `Initialize()`. Replace the sentence "Lazily resolved because a teammate
+may be observed before its own Initialize() has run." with "Lazily resolved as defence-in-depth;
+under the documented lifecycle Initialize() has always run on an active agent, so this check
+should never fire."
 
 - [ ] **Step 4: Verify it compiles**
 
@@ -859,6 +875,9 @@ Replace everything from `[Header("Agent References")]` down to the end of the `S
     private readonly List<TagAgent> activeChasers = new List<TagAgent>();
     private readonly List<TagAgent> activeRunners = new List<TagAgent>();
     private readonly List<Vector2>  spawnBuffer   = new List<Vector2>();
+
+    // Reused by AllActiveAgents() — see the note there. Never returned to a retaining caller.
+    private readonly List<TagAgent> activeAgentsBuffer = new List<TagAgent>();
 
     private int runnersCaughtThisEpisode = 0;
 
@@ -1065,13 +1084,24 @@ Replace the old `GetOpponent` method with:
         return best;
     }
 
-    /// <summary>Every currently-active agent in this arena, both teams.</summary>
-    public IEnumerable<TagAgent> AllActiveAgents()
+    /// <summary>
+    /// Every currently-active agent in this arena, both teams.
+    ///
+    /// Returns a REUSED buffer — consume it immediately, never retain it. Deliberately NOT a
+    /// `yield return` iterator: a compiler-generated iterator allocates an enumerator on every
+    /// call, and this is called once per agent per decision. At 8 agents x 16 arenas x ~10
+    /// decisions/sec that is ~1000 enumerator allocations/sec landing inside env_step, which
+    /// Theory §5 measured as 54.5% of production wall-clock. Safe because every caller consumes
+    /// the buffer synchronously within its own CollectObservations, single-threaded, no nesting.
+    /// </summary>
+    public List<TagAgent> AllActiveAgents()
     {
+        activeAgentsBuffer.Clear();
         for (int i = 0; i < activeChasers.Count; i++)
-            if (activeChasers[i].gameObject.activeInHierarchy) yield return activeChasers[i];
+            if (activeChasers[i].gameObject.activeInHierarchy) activeAgentsBuffer.Add(activeChasers[i]);
         for (int i = 0; i < activeRunners.Count; i++)
-            if (activeRunners[i].gameObject.activeInHierarchy) yield return activeRunners[i];
+            if (activeRunners[i].gameObject.activeInHierarchy) activeAgentsBuffer.Add(activeRunners[i]);
+        return activeAgentsBuffer;
     }
 ```
 
