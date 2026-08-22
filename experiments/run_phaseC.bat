@@ -46,17 +46,22 @@ if errorlevel 1 (
 echo [OK] CUDA available.
 
 REM --- ONNX EXPORT GUARD ------------------------------------------------------
-REM torch 2.11's exporter routes through onnxscript. If it is missing, EVERY run
-REM dies at the first checkpoint_interval (250k of 5M) with ModuleNotFoundError,
-REM after training has already run for ~14 min. Fail here instead.
-python -c "import onnxscript" 2>nul
+REM torch>=2.9 defaults torch.onnx.export(dynamo=True), which needs onnxscript.
+REM This project patches ml-agents to pass dynamo=False (legacy exporter) instead,
+REM because onnxscript would force onnx>=1.16 against ml-agents' onnx==1.15.0 pin
+REM and change the emitted opset vs every Phase A/B model.
+REM The patch lives in SOURCE, is invisible to pip list, and is wiped by any
+REM reinstall of the mlagents package. Without it every run dies at the first
+REM checkpoint (250k of 5M), ~14 min in, so the batch looks like it 'finished'.
+findstr /C:"dynamo=False" "C:\Users\david\Documents\PROGRAMMING\ML_AGENTS_GIT\ml-agents\ml-agents\mlagents\trainers\torch_entities\model_serialization.py" >nul 2>&1
 if errorlevel 1 (
-  echo [ERROR] onnxscript is missing - every run would crash at the first checkpoint.
-  echo         Fix:  pip install onnxscript
+  echo [ERROR] ONNX export is not patched - every run would crash at the first checkpoint.
+  echo         Add   dynamo=False,   to the torch.onnx.export call in:
+  echo         C:\Users\david\Documents\PROGRAMMING\ML_AGENTS_GIT\ml-agents\ml-agents\mlagents\trainers\torch_entities\model_serialization.py
   pause
   exit /b 1
 )
-echo [OK] onnxscript present.
+echo [OK] ONNX export patched (dynamo=False).
 
 if not exist batch_logs mkdir batch_logs
 echo Starting Phase C at %DATE% %TIME%
