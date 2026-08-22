@@ -257,6 +257,31 @@ Albert also had a couple moments of throwing the cubes at Kai and spinning with 
 >   stays byte-identical. The refactor moves the step clock + reset into `TagArenaManager.FixedUpdate`,
 >   which **fixes gotcha #3 below**; a **1v1 regression run** vs `POCA_sparse_obsF_g099_s1` guards it.
 
+>
+> **Updated 2026-08-20 (PHASE B done; PHASE C code complete, branch `feat/phase-c-multiagent`).**
+> - **Phase B result:** randomized pillars at γ=0.99 × 3 seeds — catch 0.999, ELO gap 1257,
+>   ep.len 47.1. The pre-registered RQ-C prediction ("randomized layouts learn slower and end
+>   lower") is **FALSIFIED on both halves**; every metric sits inside seed noise vs fixed layouts.
+>   Closes §14's memorization caveat ⇒ the chaser was doing reactive navigation all along, not
+>   executing a memorized plan. Tightest seed spread of any condition in the project.
+> - **PHASE C = MA-POCA vs PPO at N>1.** Motivation, measured: `Baseline Loss ÷ Value Loss` =
+>   1.002–1.006 in every 1v1 run. Derived from the trainer source — at group size 1 `critic_pass`
+>   and `baseline` get identical arguments, so **MA-POCA ≡ PPO with the value-loss coefficient
+>   scaled 0.5 → 0.75**. The counterfactual baseline has never done anything in this thesis.
+> - **New code (Tasks 1–6, 8 complete):** `SpawnPlacement` + `TeamManager` (new), `TagReward`
+>   extended with team-normalized shares that **reduce algebraically to the 1v1 formula at N_r=1**,
+>   `TagAgent` observations = 18-float VectorSensor (unchanged) + `BufferSensorComponent`
+>   (10 floats × max 7), `TagArenaManager` owns the step clock and reset. **33 EditMode tests.**
+> - **New env-params `num_chasers` / `num_runners`, both default 1** ⇒ every pre-Phase-C config is
+>   byte-identical. Reward math at `N_r=1` is the same expression, not merely equivalent.
+> - **Gotcha #3 is FIXED** by moving reset into `TagArenaManager.FixedUpdate` — the runner's
+>   terminal observation was previously its next-episode spawn (wrong on stalemates, which
+>   bootstrap from it).
+> - **BLOCKING: Task 7 is manual Editor work and the project will not run until it is done.**
+>   `TeamManager` is not on any prefab; `TagArena.prefab` still has 1 chaser + 1 runner.
+> - **Smoke gate criterion 3 decides the phase:** `Baseline/Value > 1.05` at 2v2, checked at 50k
+>   (~10 min). If it stays ~1.00 the premise is dead — stop and report that as the finding.
+
 
 ### TagAgent.cs — Key Facts
 - Inherits from `Unity.MLAgents.Agent`

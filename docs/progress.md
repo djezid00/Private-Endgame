@@ -5,6 +5,69 @@ Each entry is one working session. Newest at the top.
 
 ---
 
+## 2026-08-20 (cont.) — PHASE C code COMPLETE (Tasks 1–6, 8); user gates remain
+
+**Branch `feat/phase-c-multiagent`** (off `feat/obstacles-phase-b`). Spec
+`docs/superpowers/specs/2026-08-20-phase-c-multiagent-design.md`, plan
+`docs/superpowers/plans/2026-08-20-phase-c-multiagent.md`, executed subagent-driven with a
+two-stage review (spec compliance, then code quality) after every task. **20 commits.**
+
+**What Phase C is.** The thesis is named after MA-POCA but no result in it can distinguish MA-POCA
+from PPO. Measured cause: `Losses/Baseline Loss ÷ Losses/Value Loss` = **1.002–1.006** across every
+1v1 run. Derived from the trainer source: at group size 1 `critic_pass(obs)` and
+`baseline(obs_without_actions, obs_with_actions)` receive **identical arguments** (no groupmates ⇒
+`obs=[]`, `actions=[]`), so the counterfactual baseline IS the value function. Advantage becomes
+`returns − V`, i.e. exactly PPO's; the only surviving difference is that POCA's critic objective
+carries an extra `0.5 · baseline_loss` term ⇒ **MA-POCA at 1v1 ≡ PPO with the value-loss coefficient
+scaled 0.5 → 0.75.** A hyperparameter difference, not an algorithmic one.
+
+**Implemented (Tasks 1–6, 8):**
+- `TagReward` — team-normalized terminal shares; **reduces algebraically to the 1v1 formula at
+  `N_r = 1`**, so the regression run tests the refactor, not new reward math. 8 new tests.
+- `SpawnPlacement` (new pure module) — N-agent rejection sampling. 9 tests. **4v4 feasibility
+  measured, not assumed:** two independent Python ports agree 2000/2000; breakdown starts ~8v8;
+  the deliberately-infeasible 20v20 control fails 0/50.
+- `TeamManager` (new) — env-param-driven activation, mirrors `ObstacleManager`.
+- `TagAgent` — self in `VectorSensor` (**still exactly 18 floats**, so 1v1 sees byte-identical
+  values), all other agents in a `BufferSensorComponent` (10 floats/entity, max 7).
+- `TagArenaManager` — `List<TagAgent>` per role, step clock in its own `FixedUpdate`, reset via
+  `Academy.OnEnvironmentReset`, per-event team rewards, staged runner removal, `RunnersSurvived`.
+  **Fixes CLAUDE.md gotcha #3** (reset was a side effect of the chaser's `OnEpisodeBegin`, so the
+  runner's terminal observation was its NEXT-episode spawn — harmless on a catch, wrong on a
+  stalemate where truncation bootstraps from it).
+- Configs: `TagMApoca_team_{2v2,3v3}_{poca,ppo}.yaml` + smoke, via `experiments/gen_team_configs.py`.
+  Verified line-by-line against the Phase B config: **only** trainer_type and the three new
+  env-params differ; every hyperparameter is byte-identical, so nothing confounds the comparison.
+
+**Review caught 7 defects that would have reached training — 6 of them in the PLAN, not the code:**
+1. Spawn retry ignored its return value ⇒ `ArgumentOutOfRangeException` hours into a 5M run.
+2. No step existed to commit Unity-generated `.meta` files ⇒ scripts half-tracked.
+3. `TeamManager` had no unwired-prefab guard ⇒ NRE every reset × 16 arenas.
+4. Half-wired arrays overwrote the correctly-wired side.
+5. **`ActiveChasers` defaulted to `1`** — a plausible value, so a premature read would have pinned an
+   8-hour run to 1v1 silently. Would have looked like a real "baseline is inert" result.
+6. `AllActiveAgents()` as a `yield return` iterator ⇒ ~1000 enumerator allocs/sec inside `env_step`
+   (Theory §5: 54.5% of production wall-clock). Now returns a reused `List`, iterated by index.
+7. Smoke config's self-play cadence left at 5M values ⇒ `team_change` would never fire in a 50k run.
+
+Also verified against ML-Agents source rather than assumed: `BufferSensor.AppendObservation` **copies
+synchronously**, which is what makes the reused `entityScratch` buffer safe (had it stored the
+reference, every buffered teammate would carry the last entity's values — silently wrong training).
+
+**Remaining — all USER tasks:** Task 7 (Editor: add `BufferSensorComponent` to both agent prefabs;
+4+4 agents in `TagArena.prefab` with 2–4 inactive; add + wire `TeamManager`), Task 9 (rebuild +
+throughput bake-off), Task 10 (50k smoke gate), Task 11 (1v1 regression run vs Phase B's 3-seed
+band). **The project will NOT run until Task 7 is done** — `TeamManager`'s GUID appears nowhere in
+`Assets/` outside its own `.meta`, and the prefab still has only 1 chaser + 1 runner. A fail-loud
+guard now names that failure instead of emitting 16 stack traces.
+
+**Smoke gate criterion 3 is the phase's premise check:** `Baseline Loss ÷ Value Loss` must exceed
+**1.05** at 2v2. If it stays ~1.00, MA-POCA's baseline is inert even with teammates and the
+pre-committed fallback applies — report that as the finding and pivot to the demonstration claim.
+Ten minutes of compute decides whether 48 hours is worth spending.
+
+---
+
 ## 2026-08-20 — PHASE B COMPLETE: randomization changes nothing; RQ-C falsified on both halves
 
 **All 3 runs valid.** `POCA_sparse_obsR_g099_s{1,2,3}`, 5M steps/behavior each, both `.onnx`
