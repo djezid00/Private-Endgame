@@ -45,16 +45,33 @@ if errorlevel 1 (
 )
 echo [OK] CUDA available.
 
+REM --- ONNX EXPORT GUARD ------------------------------------------------------
+REM torch 2.11's exporter routes through onnxscript. If it is missing, EVERY run
+REM dies at the first checkpoint_interval (250k of 5M) with ModuleNotFoundError,
+REM after training has already run for ~14 min. Fail here instead.
+python -c "import onnxscript" 2>nul
+if errorlevel 1 (
+  echo [ERROR] onnxscript is missing - every run would crash at the first checkpoint.
+  echo         Fix:  pip install onnxscript
+  pause
+  exit /b 1
+)
+echo [OK] onnxscript present.
+
 if not exist batch_logs mkdir batch_logs
 echo Starting Phase C at %DATE% %TIME%
 
 REM --- seed 1 pair ------------------------------------------------------------
 mlagents-learn %CFG%\TagMApoca_team_2v2_poca.yaml --env="%ENV%" --no-graphics --run-id=POCA_team_2v2_s1 --seed 1 > batch_logs\POCA_team_2v2_s1.log 2>&1
+if errorlevel 1 ( echo [ERROR] POCA_team_2v2_s1 FAILED - aborting batch. See batch_logs\POCA_team_2v2_s1.log & pause & exit /b 1 )
 mlagents-learn %CFG%\TagMApoca_team_2v2_ppo.yaml  --env="%ENV%" --no-graphics --run-id=PPO_team_2v2_s1  --seed 1 > batch_logs\PPO_team_2v2_s1.log 2>&1
+if errorlevel 1 ( echo [ERROR] PPO_team_2v2_s1 FAILED - aborting batch. See batch_logs\PPO_team_2v2_s1.log & pause & exit /b 1 )
 
 REM --- seed 2 pair ------------------------------------------------------------
 mlagents-learn %CFG%\TagMApoca_team_2v2_poca.yaml --env="%ENV%" --no-graphics --run-id=POCA_team_2v2_s2 --seed 2 > batch_logs\POCA_team_2v2_s2.log 2>&1
+if errorlevel 1 ( echo [ERROR] POCA_team_2v2_s2 FAILED - aborting batch. See batch_logs\POCA_team_2v2_s2.log & pause & exit /b 1 )
 mlagents-learn %CFG%\TagMApoca_team_2v2_ppo.yaml  --env="%ENV%" --no-graphics --run-id=PPO_team_2v2_s2  --seed 2 > batch_logs\PPO_team_2v2_s2.log 2>&1
+if errorlevel 1 ( echo [ERROR] PPO_team_2v2_s2 FAILED - aborting batch. See batch_logs\PPO_team_2v2_s2.log & pause & exit /b 1 )
 
 echo Phase C complete at %DATE% %TIME%
 endlocal
