@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using Unity.MLAgents;
 
@@ -6,26 +7,22 @@ public class TagArenaManager : MonoBehaviour
     // ─────────────────────────────────────────────
     // INSPECTOR REFERENCES
     // ─────────────────────────────────────────────
-    [Header("Agent References")]
-    public TagAgent chaser;   // drag ChaserAgent here in Inspector
-    public TagAgent runner;   // drag RunnerAgent here in Inspector
+    [Header("Team")]
+    public TeamManager teams;   // drag the TagArena prefab's TeamManager here
 
     [Header("Obstacles (optional — leave empty for the legacy open arena)")]
-    public ObstacleManager obstacles;   // drag the TagArena prefab's Obstacles object here
+    public ObstacleManager obstacles;
 
     [Header("Arena Settings")]
-    public float arenaRadius = 8f;    // half-size of the square arena
-    public float spawnY      = 0.5f;  // Y height agents are placed at on reset.
-                                      // The agent is a 1x1x1 box (centre = 0.5 above its base),
-                                      // so 0.5 rests it flush on a floor whose top is at y=0
-                                      // (previously 1f, which left agents floating ~0.5u at spawn).
+    public float arenaRadius = 8f;
+    public float spawnY      = 0.5f;
 
     [Header("Spawn Safety")]
-    public float minSpawnDistance = 3f; // minimum distance between agents at spawn
-    public int   spawnRetryLimit  = 30; // max attempts to find a valid spawn pair
+    public float minSpawnDistance = 3f;
+    public int   spawnRetryLimit  = 30;
 
     [Header("Stalemate Prevention")]
-    public int maxEpisodeSteps = 2000;  // steps before episode is forced to end
+    public int maxEpisodeSteps = 2000;
 
     // ─────────────────────────────────────────────
     // PRIVATE STATE
@@ -33,122 +30,162 @@ public class TagArenaManager : MonoBehaviour
     private int  stepCount    = 0;
     private bool episodeEnded = false;
 
-    private Rigidbody chaserRb;
-    private Rigidbody runnerRb;
+    private readonly List<TagAgent> activeChasers = new List<TagAgent>();
+    private readonly List<TagAgent> activeRunners = new List<TagAgent>();
+    private readonly List<Vector2>  spawnBuffer   = new List<Vector2>();
 
-    // ML-Agents stats sink — surfaces custom scalars in TensorBoard.
+    // Reused by AllActiveAgents() — see the note there. Never returned to a retaining caller.
+    private readonly List<TagAgent> activeAgentsBuffer = new List<TagAgent>();
+
+    private int runnersCaughtThisEpisode = 0;
+
     private StatsRecorder stats;
+    private System.Random spawnRng;
 
-    // ─────────────────────────────────────────────
-    // MA-POCA TEAM GROUPS
-    // Each role is its own cooperative group. With 1v1 each group holds a single
-    // agent, but routing terminal rewards / episode ends through the group is what
-    // makes this a genuine MA-POCA (poca) setup rather than de-facto PPO — and it
-    // means scaling to multiple chasers later is just extra RegisterAgent() calls.
-    // All agents in a group MUST share the same Behavior Name (Chaser / Runner).
-    // ─────────────────────────────────────────────
     private SimpleMultiAgentGroup chaserGroup;
     private SimpleMultiAgentGroup runnerGroup;
 
-    // ─────────────────────────────────────────────
-    // UNITY START — cache Rigidbody references once
-    // ─────────────────────────────────────────────
-    // Called once when the scene starts.
-    // We cache the Rigidbody components here instead of calling
-    // GetComponent<>() every frame, which is expensive.
     private void Start()
     {
-        chaserRb = chaser.GetComponent<Rigidbody>();
-        runnerRb = runner.GetComponent<Rigidbody>();
+        // Seeded from UnityEngine.Random, which ML-Agents seeds from --seed, so spawns
+        // are reproducible per seed. Same pattern as ObstacleManager.
+        spawnRng = new System.Random(UnityEngine.Random.Range(int.MinValue, int.MaxValue));
 
-        // Build the two role groups and register their agent(s).
-        // To add a second chaser later: chaserGroup.RegisterAgent(secondChaser);
         chaserGroup = new SimpleMultiAgentGroup();
-        chaserGroup.RegisterAgent(chaser);
-
         runnerGroup = new SimpleMultiAgentGroup();
-        runnerGroup.RegisterAgent(runner);
 
-        // StatsRecorder lets us log episode outcomes as TensorBoard scalars.
         stats = Academy.Instance.StatsRecorder;
+
+        // Reset via the Academy hook, NOT a direct call. Environment parameters are not
+        // guaranteed to have arrived from the trainer by Start(); reading num_chasers too
+        // early would silently run the first episode at the 1v1 default AND latch the
+        // wrong values into TeamManager's one-shot log line, breaking smoke criterion 1.
+        Academy.Instance.OnEnvironmentReset += ResetArena;
     }
 
     // ─────────────────────────────────────────────
-    // RESET ARENA
-    // Called ONLY by the chaser's OnEpisodeBegin().
-    // Runner does NOT call this — that was the double-reset bug.
+    // STEP CLOCK — owned by the arena, ticked once per physics step.
+    // Previously the chaser called arena.Step() from OnActionReceived, which does not
+    // generalize (N chasers would tick N times) and coupled the clock to agent code.
     // ─────────────────────────────────────────────
-    public void ResetArena()
+    private void FixedUpdate()
     {
-        // Reset episode state flags
-        episodeEnded = false;
-        stepCount    = 0;
-
-        // Obstacles FIRST, agents second — agent spawn rejection needs the new positions.
-        if (obstacles != null) obstacles.ResetObstacles();
-
-        // --- Place chaser on the LEFT half, runner on the RIGHT half ---
-        // Separated sides prevent instant-collision on spawn; SampleSpawn keeps
-        // both out of the obstacle clearance zone.
-        Vector3 chaserPos = SampleSpawn(-arenaRadius + 1f, -1f);
-        Vector3 runnerPos = SampleSpawn(1f, arenaRadius - 1f);
-
-        // --- Safety loop: retry runner position if too close to chaser ---
-        int attempts = 0;
-        while (Vector3.Distance(chaserPos, runnerPos) < minSpawnDistance
-               && attempts < spawnRetryLimit)
-        {
-            runnerPos = SampleSpawn(1f, arenaRadius - 1f);
-            attempts++;
-        }
-
-        // --- Apply positions and random rotations ---
-        chaser.transform.localPosition = chaserPos;
-        runner.transform.localPosition = runnerPos;
-
-        chaser.transform.localRotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
-        runner.transform.localRotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
-
-        // --- Zero out all physics velocity ---
-        // Without this, residual velocity from the previous episode carries over.
-        chaserRb.linearVelocity  = Vector3.zero;
-        chaserRb.angularVelocity = Vector3.zero;
-        runnerRb.linearVelocity  = Vector3.zero;
-        runnerRb.angularVelocity = Vector3.zero;
-    }
-
-    // Samples a spawn in [xMin,xMax] x [-arenaRadius+1, arenaRadius-1], re-rolling while the
-    // candidate sits inside an active obstacle's clearance. Bounded retries; after the budget
-    // it returns the last candidate rather than loop forever (an occasional pillar-adjacent
-    // spawn is harmless — physics pushes the box out).
-    private Vector3 SampleSpawn(float xMin, float xMax)
-    {
-        Vector3 pos = Vector3.zero;
-        for (int i = 0; i < spawnRetryLimit; i++)
-        {
-            pos = new Vector3(
-                Random.Range(xMin, xMax),
-                spawnY,
-                Random.Range(-arenaRadius + 1f, arenaRadius - 1f));
-            if (obstacles == null || obstacles.IsClearOfActiveObstacles(pos)) return pos;
-        }
-        return pos;
-    }
-
-    // ─────────────────────────────────────────────
-    // STEP CLOCK
-    // Called every FixedUpdate by the chaser ONLY (not the runner).
-    // This drives the stalemate timer without double-counting.
-    // ─────────────────────────────────────────────
-    public void Step()
-    {
-        if (episodeEnded) return; // ignore calls after episode already finished
+        if (episodeEnded) return;
 
         stepCount++;
-
         if (stepCount >= maxEpisodeSteps)
             TriggerStalemate();
     }
+
+    /// <summary>
+    /// Full arena reset. Called from Start() and after every episode end — by the arena
+    /// itself, never from an agent's OnEpisodeBegin (that was the old ordering bug).
+    /// </summary>
+    public void ResetArena()
+    {
+        episodeEnded = false;
+        stepCount    = 0;
+        runnersCaughtThisEpisode = 0;
+
+        // 1. Obstacles first — spawn rejection needs their new positions.
+        if (obstacles != null) obstacles.ResetObstacles();
+
+        // 2. Team sizes from env-params, activating the agents.
+        teams.ApplyTeamSizes();
+
+        // 3. Rebuild the active lists from what TeamManager just activated.
+        activeChasers.Clear();
+        activeRunners.Clear();
+        for (int i = 0; i < teams.ActiveChasers; i++) activeChasers.Add(teams.chasers[i]);
+        for (int i = 0; i < teams.ActiveRunners; i++) activeRunners.Add(teams.runners[i]);
+
+        // 4. Sample spawns for everyone at once.
+        bool ok = SpawnPlacement.TrySampleSpawns(
+            activeChasers.Count, activeRunners.Count, arenaRadius, minSpawnDistance,
+            ObstaclePositions(), ObstaclePositionCount(), ObstacleClearance(),
+            spawnRng, spawnBuffer);
+
+        if (!ok)
+        {
+            // Fallback: relax separation rather than break training. Logged so an
+            // over-crowded composition is visible in the player log instead of silent.
+            Debug.LogWarning($"[TagArenaManager] spawn sampling failed for " +
+                             $"{activeChasers.Count}v{activeRunners.Count}; retrying with half separation.");
+            ok = SpawnPlacement.TrySampleSpawns(
+                activeChasers.Count, activeRunners.Count, arenaRadius, minSpawnDistance * 0.5f,
+                ObstaclePositions(), ObstaclePositionCount(), ObstacleClearance(),
+                spawnRng, spawnBuffer);
+        }
+
+        if (!ok)
+        {
+            // SpawnPlacement CLEARS its result list on failure, so spawnBuffer is now empty.
+            // Indexing it below would throw ArgumentOutOfRangeException and kill the training
+            // process mid-run. Fall back to a deterministic grid instead: correctness of the
+            // episode matters less than never crashing a 5M-step unattended run.
+            Debug.LogError($"[TagArenaManager] spawn sampling failed TWICE for " +
+                           $"{activeChasers.Count}v{activeRunners.Count} — using fallback grid. " +
+                           $"This composition is over-crowded; lower it.");
+            FallbackGridSpawns(activeChasers.Count, activeRunners.Count, spawnBuffer);
+        }
+
+        // 5. Place agents, zero physics, randomize yaw.
+        for (int i = 0; i < activeChasers.Count; i++)
+            PlaceAgent(activeChasers[i], spawnBuffer[i]);
+        for (int i = 0; i < activeRunners.Count; i++)
+            PlaceAgent(activeRunners[i], spawnBuffer[activeChasers.Count + i]);
+
+        Physics.SyncTransforms();
+
+        // 6. RE-REGISTER every active agent. SetActive(false) auto-unregistered the ones
+        //    caught last episode (SimpleMultiAgentGroup subscribes OnAgentDisabled), so
+        //    without this the groups silently drain to empty — with no error raised.
+        //    RegisterAgent is idempotent, so re-registering survivors is harmless.
+        foreach (TagAgent c in activeChasers) chaserGroup.RegisterAgent(c);
+        foreach (TagAgent r in activeRunners) runnerGroup.RegisterAgent(r);
+
+        // 7. Seed per-episode shaping state now that positions are final.
+        foreach (TagAgent c in activeChasers) c.OnArenaReset();
+        foreach (TagAgent r in activeRunners) r.OnArenaReset();
+    }
+
+    /// <summary>
+    /// Last-resort deterministic spawn layout, used only when rejection sampling has failed
+    /// twice. Evenly spaces each team down its own side of the arena. May violate
+    /// minSpawnDistance for very large teams — that is preferable to crashing the run.
+    /// </summary>
+    private void FallbackGridSpawns(int chaserCount, int runnerCount, List<Vector2> buffer)
+    {
+        buffer.Clear();
+        float edge = arenaRadius - 1f;
+        for (int i = 0; i < chaserCount; i++)
+        {
+            float t = chaserCount == 1 ? 0.5f : (float)i / (chaserCount - 1);
+            buffer.Add(new Vector2(-edge * 0.5f, Mathf.Lerp(-edge, edge, t)));
+        }
+        for (int i = 0; i < runnerCount; i++)
+        {
+            float t = runnerCount == 1 ? 0.5f : (float)i / (runnerCount - 1);
+            buffer.Add(new Vector2(edge * 0.5f, Mathf.Lerp(-edge, edge, t)));
+        }
+    }
+
+    private void PlaceAgent(TagAgent agent, Vector2 xz)
+    {
+        agent.transform.localPosition = new Vector3(xz.x, spawnY, xz.y);
+        agent.transform.localRotation = Quaternion.Euler(0f, UnityEngine.Random.Range(0f, 360f), 0f);
+        var arb = agent.GetComponent<Rigidbody>();
+        arb.linearVelocity  = Vector3.zero;
+        arb.angularVelocity = Vector3.zero;
+    }
+
+    private static readonly List<Vector2> emptyObstacles = new List<Vector2>();
+    private IReadOnlyList<Vector2> ObstaclePositions() =>
+        obstacles != null ? obstacles.ActivePositions : emptyObstacles;
+    private int ObstaclePositionCount() =>
+        obstacles != null ? obstacles.ActivePositions.Count : 0;
+    private float ObstacleClearance() =>
+        obstacles != null ? obstacles.agentClearance : 0f;
 
     // ─────────────────────────────────────────────
     // PPO SUPPORT — individual terminal reward toggle
@@ -257,13 +294,38 @@ public class TagArenaManager : MonoBehaviour
         runnerGroup.EndGroupEpisode();
     }
 
-    // ─────────────────────────────────────────────
-    // GET OPPONENT
-    // Utility used by TagAgent.CollectObservations()
-    // to retrieve the reference to the OTHER agent.
-    // ─────────────────────────────────────────────
-    public TagAgent GetOpponent(TagAgent agent)
+    /// <summary>Nearest ACTIVE opponent to the given agent, or null if none remain.</summary>
+    public TagAgent GetNearestOpponent(TagAgent agent)
     {
-        return (agent == chaser) ? runner : chaser;
+        List<TagAgent> opponents = (agent.teamId == 0) ? activeRunners : activeChasers;
+        TagAgent best = null;
+        float bestSqr = float.MaxValue;
+        for (int i = 0; i < opponents.Count; i++)
+        {
+            if (!opponents[i].gameObject.activeInHierarchy) continue;
+            float d = (opponents[i].transform.localPosition - agent.transform.localPosition).sqrMagnitude;
+            if (d < bestSqr) { bestSqr = d; best = opponents[i]; }
+        }
+        return best;
+    }
+
+    /// <summary>
+    /// Every currently-active agent in this arena, both teams.
+    ///
+    /// Returns a REUSED buffer — consume it immediately, never retain it. Deliberately NOT a
+    /// `yield return` iterator: a compiler-generated iterator allocates an enumerator on every
+    /// call, and this is called once per agent per decision. At 8 agents x 16 arenas x ~10
+    /// decisions/sec that is ~1000 enumerator allocations/sec landing inside env_step, which
+    /// Theory §5 measured as 54.5% of production wall-clock. Safe because every caller consumes
+    /// the buffer synchronously within its own CollectObservations, single-threaded, no nesting.
+    /// </summary>
+    public List<TagAgent> AllActiveAgents()
+    {
+        activeAgentsBuffer.Clear();
+        for (int i = 0; i < activeChasers.Count; i++)
+            if (activeChasers[i].gameObject.activeInHierarchy) activeAgentsBuffer.Add(activeChasers[i]);
+        for (int i = 0; i < activeRunners.Count; i++)
+            if (activeRunners[i].gameObject.activeInHierarchy) activeAgentsBuffer.Add(activeRunners[i]);
+        return activeAgentsBuffer;
     }
 }

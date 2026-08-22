@@ -26,6 +26,10 @@ public class ObstacleManager : MonoBehaviour
 
     private System.Random rng;  // seeded per-instance in Awake — 16 arenas must not share a layout stream
     private readonly List<Vector2> positions = new List<Vector2>(); // active obstacle XZ
+
+    /// <summary>Active obstacle XZ positions — read by TagArenaManager for spawn rejection.</summary>
+    public IReadOnlyList<Vector2> ActivePositions => positions;
+
     private Vector3[]    authoredLocalPos;
     private Quaternion[] authoredLocalRot;
 
