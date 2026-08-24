@@ -978,8 +978,19 @@ A fixed-vs-random contrast plot and the three catch-rate training curves remain 
 
 ### Research follow-ups (ordered by thesis value)
 
-> **List updated 2026-08-20.** Item 1 is **done** (Phase B, §14); item 2 is now the active phase
-> (Phase C); item 7 is new, created by Phase B's reduced scope.
+> **List updated 2026-08-24.** Item 1 is **done** (Phase B, §14); item 2 is **done** (Phase C,
+> §16 — executed at 2v2 only; the 3v3/2v3 half of it survives as the top open question, see §16.8);
+> item 7 is new, created by Phase B's reduced scope.
+>
+> **New follow-ups created by Phase C (§16):**
+> **(8) Same-code 1v1 control** — one 5M run on Phase C code at `num_chasers/num_runners = 1`,
+> closing the cross-code-version caveat in §16.4 and doubling as the refactor regression test
+> (planned as Task 11, never executed). ~5 h, highest value per hour in the project.
+> **(9) 3v3 and 2v3** — the untested pre-registered prediction P4 (posthumous-credit effect scales
+> with runner count). Configs and binary already support it; compute only.
+> **(10) Bistability rate** — 2 of 6 runs never bootstrapped, algorithm-independently and not
+> layout-driven (§16.7). A usable rate estimate needs ~10+ seeds; cheaper alternative is a
+> curriculum or an initial catch-assist to test whether the stalemate lock-in is avoidable.
 
 1. ~~**Phase B — randomized layouts:**~~ **DONE 2026-08-20** — results and conclusion in §14.
    Outcome: no detectable effect of per-episode layout randomization; the pre-registered RQ-C
@@ -1055,3 +1066,182 @@ seed-reproducible only as of Phase B (`ca64ed0`).
 **Overall: the thesis has moved from "does it work?" to "here is a reproducible, pre-registered
 characterization of when and why it works" — which is a stronger contribution than the original
 goal.**
+
+---
+
+## 16. Phase C — MA-POCA vs PPO at 2v2 (the multi-agent phase)
+
+*Runs executed 2026-08-23/24. Six 5M-step runs: `{POCA,PPO}_team_2v2_s{1,2,3}`. Sparse reward,
+γ = 0.99, four randomized pillars, 16 arenas, GPU (`mlagents_gpu`). Pre-registered expectations
+P1–P4 were written 2026-08-20, before any run — see
+`docs/superpowers/specs/2026-08-20-phase-c-multiagent-design.md` §5.*
+
+### 16.1 Why this phase exists: MA-POCA at 1v1 is not MA-POCA
+
+Every result in §§11–14 was produced at group size 1. Derived from the trainer source: with no
+groupmates, `POCAOptimizer` calls `critic_pass(obs)` and `baseline(obs_without_actions,
+obs_with_actions)` with **identical arguments** (`obs = []`, `actions = []`), so the counterfactual
+baseline *is* the value function. The advantage reduces to `returns − V`, i.e. exactly PPO's, and
+the only surviving difference is that POCA's critic objective carries an extra `0.5 · baseline_loss`
+term. **At 1v1, MA-POCA ≡ PPO with the value-loss coefficient scaled 0.5 → 0.75** — a hyperparameter
+difference, not an algorithmic one.
+
+The prediction is directly measurable as `Losses/Baseline Loss ÷ Losses/Value Loss`, and every 1v1
+run in this project confirms it: the ratio sits at **1.002–1.006**, with a minimum of *exactly*
+1.000. This retroactively explains §13's finding that MA-POCA ≈ PPO under a sparse reward — it was
+not an empirical coincidence but an identity.
+
+> **Note for the thesis:** the evidence was already present in the §6.1 verification table
+> (`TagTest_poca_01`: Value Loss 0.0202, Baseline Loss 0.0202) and went unremarked. The presence of
+> a `Baseline Loss` tag proves the *trainer* is POCA; it does **not** prove the algorithm is doing
+> anything a PPO trainer would not. That distinction is Phase C's contribution.
+
+### 16.2 Design
+
+2 chasers vs 2 runners, one `SimpleMultiAgentGroup` per role. A tagged runner **deactivates while
+the episode continues**, which exercises posthumous credit assignment for the first time in the
+project. Self observations remain an 18-float `VectorSensor` (byte-identical to 1v1); every other
+agent enters a `BufferSensorComponent` (10 floats × max 7 entities), giving one permutation-
+invariant behaviour spec across team sizes.
+
+Both arms share every hyperparameter; only `trainer_type` and the reward-delivery channel differ.
+PPO cannot consume group rewards at all, so the PPO arm runs with `individual_terminal_reward = 1.0`
+(the terminal ±1 mirrored per agent) while POCA runs with `0.0` and uses the group channel. This is
+the standard "independent learners with a shared reward" baseline (design decision D5) and is
+**a confound that must be stated**: any arm difference may stem from the delivery channel rather
+than from the algorithm.
+
+### 16.3 Results
+
+| run | Catch | RunnersSurvived | Ep. len | TimeToCatch | ELO gap | outcome |
+|---|---|---|---|---|---|---|
+| POCA s1 | 0.000 | 0.967 | 399.0 | 1061 | 19 | **collapsed** |
+| POCA s2 | 0.979 | 0.011 | 70.3 | 163 | 986 | learned |
+| POCA s3 | 0.998 | 0.001 | 53.8 | 136 | 1115 | learned |
+| PPO s1 | 0.982 | 0.009 | 91.2 | 220 | 1015 | learned |
+| PPO s2 | 0.000 | 0.974 | 399.0 | 1120 | 39 | **collapsed** |
+| PPO s3 | 0.996 | 0.002 | 67.2 | 168 | 1099 | learned |
+
+All six runs: 5M steps, 20 checkpoints, ONNX exported, **zero non-finite scalars**. Wall-clock
+4.6–6.8 h per run on GPU. `[TeamManager] num_chasers=2, num_runners=2` logged in every player log.
+
+**Both arms: 2 of 3 seeds learned, 1 of 3 collapsed.**
+
+> **FIGURE PLACEHOLDER — Fig. C1:** `docs/figures/phasec/tb_catch_6runs.png`
+> TensorBoard `Environment/Catch`, all six runs on one axis, POCA solid / PPO dashed.
+>
+> **FIGURE PLACEHOLDER — Fig. C2:** `docs/figures/phasec/tb_runners_survived.png`
+> `Environment/RunnersSurvived`, all six runs — the team-outcome metric P3 was scored on.
+>
+> **FIGURE PLACEHOLDER — Fig. C3:** `docs/figures/phasec/tb_elo_6runs.png`
+> `Self-play/ELO` for both roles; the two collapsed runs stay pinned at the 1200 start.
+
+### 16.4 P1 — the baseline engages (CONFIRMED)
+
+Divergence of the baseline from the value function, measured as the mean distance of
+`Baseline Loss ÷ Value Loss` from 1.0 across all 100 summaries of each run:
+
+| | seed 1 | seed 2 | seed 3 |
+|---|---|---|---|
+| 1v1 chaser (`obsR_g099`) | 0.016 | 0.027 | 0.018 |
+| **2v2 chaser** | **0.153** | **0.206** | **0.227** |
+| 1v1 runner (`obsR_g099`) | 0.026 | 0.017 | 0.017 |
+| **2v2 runner** | **0.106** | **0.124** | **0.087** |
+
+**Twelve measurements, zero overlap** — every 2v2 value exceeds every 1v1 value, a 5–9× separation.
+At 1v1 the ratio's minimum is exactly 1.000 in all six behaviours; at 2v2 it falls *below* 1.0
+(min 0.835), which is only possible if the two heads compute different quantities.
+
+Decisively, the measurement is **outcome-independent**: POCA s3 has both the highest divergence
+(0.227) and the best result in the phase (catch 0.998), while POCA s1 **collapsed completely** and
+still registered 0.153. The divergence tracks group size, not learning success — exactly as the
+derivation in §16.1 predicts.
+
+> **FIGURE PLACEHOLDER — Fig. C4:** `docs/figures/phasec/baseline_value_ratio.png`
+> Ratio vs training step, three 1v1 runs (flat at 1.00) against three 2v2 runs (oscillating
+> 0.84–1.65). The single most important figure of the phase.
+
+**Caveat, stated plainly:** the 1v1 comparison runs predate the Phase C refactor, so this contrast
+is across code versions. The same-code 1v1 control (planned Task 11) was not executed. The
+derivation in §16.1 is code-version-independent, and the exact 1.000 minimum corroborates it, but
+the empirical half of the claim would be stronger with that control.
+
+### 16.5 P2 and P3 — falsified: no team-outcome advantage
+
+**P2** predicted MA-POCA's advantage would appear mainly in *runner-side* metrics, since only
+runners deactivate and therefore only the runner group exercises posthumous credit. **Falsified.**
+Runner survival is indistinguishable between arms (POCA winners 0.011/0.001; PPO winners
+0.009/0.002); what difference exists appears on the **chaser** side — precisely the condition the
+pre-registration named as falsifying.
+
+**P3** predicted a higher runner-survival fraction for MA-POCA. **Falsified** on the branch the
+spec explicitly pre-authorized: *"indistinguishable within seed ranges — a legitimate and reportable
+outcome that would generalize §13's equivalence from 1v1 to teams."* It does. Final catch rate
+(POCA 0.979/0.998 vs PPO 0.982/0.996) and ELO gap (986/1115 vs 1015/1099) are dead ties.
+
+**P4** (magnitude scales with runner count) remains **untestable** — one composition only.
+
+### 16.6 The unplanned result: a speed/quality trade-off
+
+Restricting to the four runs that learned, two clean and *opposite* separations appear, neither
+overlapping:
+
+| | POCA (s2, s3) | PPO (s1, s3) |
+|---|---|---|
+| steps to catch > 0.10 | 2.5M, 1.4M | **550k, 200k** |
+| final catch | 0.979, 0.998 | 0.982, 0.996 |
+| ELO gap | 986, 1115 | 1015, 1099 |
+| TimeToCatch (lower better) | **136, 163** | 168, 220 |
+
+PPO bootstraps **3–7× earlier**; MA-POCA catches **~20% faster once competent**. Final success is
+tied. The mechanism is plausible — an individually-delivered terminal reward is a denser, less
+ambiguous learning signal early, while the centralized baseline pays off only once coordinated
+behaviour exists — but with two winners per arm this is **suggestive, not established**, and it is
+confounded with the delivery channel (§16.2). Episode length agrees directionally, though those
+ranges touch.
+
+### 16.7 Bistability: a third of runs never leave the ground
+
+Two of six runs (33%) ended with catch rate **exactly 0.000** and every episode at the 399-decision
+cap. Signature, identical in both: chaser entropy **rising** (1.41 → 1.60/1.63) while the runner's
+falls, chaser value estimate pinned near −1.3, and both ELO ratings frozen at the 1200 start
+(everything a draw).
+
+Seed 3 supplied the decisive evidence about *cause*. **Seed 1 collapsed under POCA but learned
+under PPO; seed 2 learned under POCA but collapsed under PPO.** Since `--seed` drives the
+obstacle-layout and spawn RNG identically across arms, the layouts seed 1 produced were
+demonstrably catchable — PPO caught in them. **The collapse is therefore a property of the training
+dynamics (a self-play stalemate lock-in before the chaser ever discovers a catch), not of the
+arena geometry.** This retires the "unlucky layout" explanation.
+
+Note also that catch at 2v2 requires **all** runners caught, making the bootstrapping event rarer
+than at 1v1, where no run in this project ever failed to learn.
+
+> **FIGURE PLACEHOLDER — Fig. C5:** `docs/figures/phasec/tb_entropy_collapse.png`
+> `Policy/Entropy` for the two collapsed runs against two learners; the rising chaser entropy is
+> the collapse signature.
+
+### 16.8 Verdict
+
+RQ-D asked whether MA-POCA outperforms PPO once group size exceeds 1. The answer, at 2v2 in this
+environment: **its distinguishing machinery demonstrably switches on, but that does not translate
+into a better outcome.**
+
+1. **The mechanism claim is established** — inert at 1v1 (derived + measured at 1.002–1.006), active
+   at 2v2 (12 measurements, no overlap), and independent of whether the run succeeded.
+2. **The performance claim is negative** — final catch rate, runner survival and ELO gap are tied;
+   both pre-registered performance predictions (P2, P3) were falsified.
+3. **A trade-off appeared that nobody predicted** — PPO learns much earlier, MA-POCA plays somewhat
+   better once competent; suggestive at 2 winners per arm and confounded with delivery channel.
+4. **Emergence is not reliable** — 33% of runs never bootstrap, algorithm-independently, and the
+   cause is training dynamics rather than environment geometry.
+
+Honest limits: one composition (2v2); three seeds per arm with a bimodal outcome, so the comparison
+carries little resolution and no stronger claim than "indistinguishable" should be made from it; the
+1v1 baseline for §16.4 comes from pre-refactor code; and the arms differ in reward-delivery channel
+by necessity.
+
+**Where the effect should be looked for next:** larger runner teams (3v3 and asymmetric 2v3), where
+each additional deactivation adds another posthumous-credit window per episode — P4, still
+unanswered. The configs (`TagMApoca_team_3v3_{poca,ppo}.yaml`) and the binary already support it
+with no code change; only compute is missing.
