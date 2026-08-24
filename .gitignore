@@ -77,3 +77,11 @@ UpgradeLog*.htm
 # Thesis binary Office docs (edited manually by the user; not versioned as blobs)
 docs/*.docx
 docs/*.doc
+# Thesis manuscript + internal review notes (kept local, never published)
+*.doc
+*.docx
+docs/EVALUACIJA_diplomskog_rada.md
+docs/USKLADENOST_s_uputama_FESB.md
+docs/VODIC_ZA_DOVRSETAK_RADA.md
+docs/DUPLIKATI_u_poglavljima_5_i_6.md
+docs/diplomski_nedostajuci_dijelovi.md
